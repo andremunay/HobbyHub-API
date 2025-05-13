@@ -1,1 +1,3 @@
 # HobbyHub-API
+
+HobbyHub API is a personal-skill tracker designed for hobbyists who want to deepen their expertise and stay motivated. This MVP focuses on two high-impact modules—Spanish vocabulary and weightlifting—to demonstrate how centralized note-taking and progress analytics can drive measurable improvement. By capturing flashcard data and workout stats in structured practice journals, the API helps users identify trends, retain knowledge, and apply deliberate practice. Built with Spring Boot and PostgreSQL, the project showcases clean architecture, real-world analytics, and an extensible foundation for lifelong learning.
