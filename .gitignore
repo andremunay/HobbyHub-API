@@ -1,0 +1,46 @@
+# Java / Maven
+/target
+*.class
+*.jar
+*.war
+*.log
+!.mvn/wrapper/maven-wrapper.jar
+
+# Optional Spring Init file
+HELP.md
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+.apt_generated
+.factorypath
+.springBeans
+.sts4-cache
+
+# Spring Boot secrets/config
+application.properties
+application.yml
+
+# Docker
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# NetBeans / Gradle
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+# Spotless
+**/spotless.*.backup
