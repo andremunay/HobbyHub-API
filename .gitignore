@@ -24,8 +24,6 @@ HELP.md
 .sts4-cache
 
 # Spring Boot secrets/config
-application.properties
-application.yml
 
 # Docker
 .env
