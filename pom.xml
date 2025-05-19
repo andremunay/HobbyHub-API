@@ -73,6 +73,10 @@
 			<artifactId>postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.liquibase</groupId>
+			<artifactId>liquibase-core</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -114,9 +118,7 @@
 			</executions>
 			<configuration>
 				<java>
-				<eclipse>
-					<file>${basedir}/.eclipse-formatter.xml</file>
-				</eclipse>
+					<googleJavaFormat/>
 				</java>
 			</configuration>
 			</plugin>
@@ -151,6 +153,17 @@
 						</limits>
 					</rule>
 					</rules>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.liquibase</groupId>
+				<artifactId>liquibase-maven-plugin</artifactId>
+				<configuration>
+					<changeLogFile>src/main/resources/db/changelog/master.yaml</changeLogFile>
+					<url>jdbc:postgresql://localhost:5432/hobbyhub</url>
+					<username>hobbyuser</username>
+					<password>hobbysecret</password>
+					<driver>org.postgresql.Driver</driver>
 				</configuration>
 			</plugin>
 		</plugins>
