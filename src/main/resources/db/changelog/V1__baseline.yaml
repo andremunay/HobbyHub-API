@@ -1,0 +1,58 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: andremunay
+      changes:
+        - createTable:
+            tableName: flashcards
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: front
+                  type: varchar(255)
+              - column:
+                  name: back
+                  type: varchar(255)
+              - column:
+                  name: created_at
+                  type: date
+
+        - createTable:
+            tableName: workouts
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: performed_on
+                  type: date
+
+        - createTable:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: workout_id
+                  type: UUID
+              - column:
+                  name: name
+                  type: varchar(100)
+              - column:
+                  name: sets
+                  type: int
+              - column:
+                  name: reps
+                  type: int
+              - column:
+                  name: weight_kg
+                  type: decimal(5,2)

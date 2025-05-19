@@ -23,8 +23,6 @@ This initial scaffolding enables a high-confidence environment for future featur
 
 ---
 
-## Retrospective (Post-Implementation)
-
 ### Lessons Learned
 
 * **Docker Basics & Containerization**
