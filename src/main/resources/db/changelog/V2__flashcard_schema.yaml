@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2
+      author: andremunay
+      changes:
+        - addColumn:
+            tableName: flashcards
+            columns:
+              - column:
+                  name: repetition
+                  type: int
+              - column:
+                  name: easiness_factor
+                  type: decimal(3,2)
+              - column:
+                  name: next_review_on
+                  type: date
