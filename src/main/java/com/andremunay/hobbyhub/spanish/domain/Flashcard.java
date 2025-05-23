@@ -1,6 +1,9 @@
 package com.andremunay.hobbyhub.spanish.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -25,6 +28,7 @@ public class Flashcard {
 
   private int repetition;
   private double easinessFactor;
+  private int interval;
   private LocalDate nextReviewOn;
 
   public Flashcard(UUID id, String front, String back) {
@@ -33,6 +37,7 @@ public class Flashcard {
     this.back = back;
     this.repetition = 0;
     this.easinessFactor = 2.5;
+    this.interval = 1;
     this.nextReviewOn = LocalDate.now();
   }
 }
