@@ -1,0 +1,17 @@
+package com.andremunay.hobbyhub.spanish.infra.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class FlashcardCreateRequest {
+  @NotBlank private String front;
+
+  @NotBlank private String back;
+}
