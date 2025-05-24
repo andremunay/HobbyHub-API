@@ -3,7 +3,9 @@ package com.andremunay.hobbyhub.spanish.app;
 import com.andremunay.hobbyhub.spanish.domain.Flashcard;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.stereotype.Service;
 
+@Service
 public class Sm2ReviewScheduler implements ReviewScheduler {
 
   @Override
