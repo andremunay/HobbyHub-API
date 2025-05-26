@@ -28,7 +28,10 @@ public class Flashcard {
 
   private int repetition;
   private double easinessFactor;
+
+  @Column(name = "interval_days")
   private int interval;
+
   private LocalDate nextReviewOn;
 
   public Flashcard(UUID id, String front, String back) {
