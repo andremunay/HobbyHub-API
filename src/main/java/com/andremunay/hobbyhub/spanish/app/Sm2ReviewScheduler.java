@@ -2,16 +2,10 @@ package com.andremunay.hobbyhub.spanish.app;
 
 import com.andremunay.hobbyhub.spanish.domain.Flashcard;
 import java.time.LocalDate;
-import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class Sm2ReviewScheduler implements ReviewScheduler {
-
-  @Override
-  public List<Flashcard> getDue(LocalDate today) {
-    return List.of(); // placeholder for future DB integration
-  }
 
   /**
    * Updates flashcard review state using the SM-2 spaced repetition algorithm.
@@ -21,6 +15,7 @@ public class Sm2ReviewScheduler implements ReviewScheduler {
    * @param today the date of review
    * @return the updated flashcard
    */
+  @Override
   public Flashcard review(Flashcard card, int grade, LocalDate today) {
     int prevRepetition = card.getRepetition();
     double ef = card.getEasinessFactor();

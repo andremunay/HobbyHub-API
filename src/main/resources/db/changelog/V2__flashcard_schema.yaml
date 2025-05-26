@@ -16,5 +16,5 @@ databaseChangeLog:
                   name: next_review_on
                   type: date
               - column:
-                  name: interval
+                  name: interval_days
                   type: int    
