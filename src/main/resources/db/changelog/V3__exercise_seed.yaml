@@ -1,0 +1,35 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3
+      author: andremunay
+      changes:
+
+        # Enable uuid-ossp extension via raw SQL
+        - sql:
+            dbms: postgresql
+            splitStatements: false
+            stripComments: true
+            sql: |
+              CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+        # Insert some common lifts
+        - insert:
+            tableName: exercises
+            columns:
+              - column: { name: id,            valueComputed: "uuid_generate_v4()" }
+              - column: { name: name,          value: "Bench Press" }
+              - column: { name: muscle_group, value: "Chest" }
+
+        - insert:
+            tableName: exercises
+            columns:
+              - column: { name: id,            valueComputed: "uuid_generate_v4()" }
+              - column: { name: name,          value: "Squat" }
+              - column: { name: muscle_group, value: "Legs" }
+
+        - insert:
+            tableName: exercises
+            columns:
+              - column: { name: id,            valueComputed: "uuid_generate_v4()" }
+              - column: { name: name,          value: "Deadlift" }
+              - column: { name: muscle_group, value: "Back" }

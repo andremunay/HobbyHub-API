@@ -21,8 +21,6 @@ The aim is to:
 
 This initial scaffolding enables a high-confidence environment for future feature development by reducing technical debt upfront.
 
----
-
 ### Lessons Learned
 
 * **Docker Basics & Containerization**
@@ -58,5 +56,30 @@ This initial scaffolding enables a high-confidence environment for future featur
   * Clear, action-based titles
   * Descriptive context
   * Bulletproof acceptance criteria using checklists
+
+---
+
+## [2025-05-27] HobbyHub API Development
+
+### Context
+
+We began by drafting a one‐page architectural sketch to clarify module boundaries (Spanish, Weightlifting, shared) and inbound/outbound flows. Next, we integrated Liquibase—adding the plugin, creating a `master.yaml` changelog, and authoring a baseline migration for our core tables. Then we built out the Spanish module in four parts: defining the `Flashcard` entity and JPA repository, implementing the SM-2 spaced-repetition algorithm as a service, exposing create/list/review endpoints with DTOs in a controller, and finally wiring everything together with comprehensive slice and integration tests plus Swagger documentation.
+
+### Lessons Learned
+
+* **Docs directory organizational power**
+  Keeping `docs/` in the repo helped crystallize design decisions, share them as an ADR substitute, and onboard collaborators.
+* **Liquibase fundamentals**
+  Learned the role of `master.yaml`, change-sets, and the `db/changelog` structure for controlled, repeatable migrations.
+* **Integration testing with Testcontainers**
+  Wrote my first real integration test against a live Postgres container, wiring in `@DynamicPropertySource` to bootstrap Spring’s `DataSource`.
+* **`java.time` mastery**
+  Leveraged `LocalDate` for review scheduling, saw how to serialize it in JSON via Jackson config.
+* **Code coverage inspection**
+  Discovered that `./mvnw clean verify` generates `target/site/jacoco/index.html`, and learned to open it in a browser to verify branch and line coverage.
+* **Slice tests demystified**
+  Understood how to write fast, focused tests with `@DataJpaTest` for JPA queries and `@WebMvcTest` (or standalone MockMvc) for controller logic.
+* **Swagger UI for endpoint verification**
+  Integrated Springdoc to expose `/swagger-ui/index.html`, making it trivial to manually explore and validate all REST endpoints.
 
 ---

@@ -9,18 +9,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class FlashcardService {
 
   private final FlashcardRepository repository;
   private final ReviewScheduler scheduler;
-
-  public FlashcardService(FlashcardRepository repository, ReviewScheduler scheduler) {
-    this.repository = repository;
-    this.scheduler = scheduler;
-  }
 
   /** Create and save a new flashcard. */
   public void create(String front, String back) {

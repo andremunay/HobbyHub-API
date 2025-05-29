@@ -5,3 +5,7 @@ databaseChangeLog:
       file: db/changelog/V2__flashcard_schema.yaml
   - include:
       file: db/changelog/V2__testdata.yaml
+  - include:
+      file: db/changelog/V3__weightlifting_schema.yaml
+  - include:
+      file: db/changelog/V3__exercise_seed.yaml

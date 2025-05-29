@@ -1,0 +1,62 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4
+      author: andremunay
+      changes:
+        # Remove incorrect weightlifting columns from exercises table
+        - dropColumn:
+            tableName: exercises
+            columnName: workout_id
+        - dropColumn:
+            tableName: exercises
+            columnName: sets
+        - dropColumn:
+            tableName: exercises
+            columnName: reps
+        - dropColumn:
+            tableName: exercises
+            columnName: weight_kg
+
+        # Add muscle_group column to exercises table
+        - addColumn:
+            tableName: exercises
+            columns:
+              - column:
+                  name: muscle_group
+                  type: varchar(255)
+                  defaultValue: 'General'
+                  constraints:
+                    nullable: false
+
+        # 3) Workout sets table with composite key
+        - createTable:
+            tableName: workout_sets
+            columns:
+              - column:
+                  name: workout_id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: set_order
+                  type: int
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: weight_kg
+                  type: decimal(5,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reps
+                  type: int
+                  constraints:
+                    nullable: false
+
+        # 4) Foreign key from sets → workouts
+        - addForeignKeyConstraint:
+            baseTableName: workout_sets
+            baseColumnNames: workout_id
+            referencedTableName: workouts
+            referencedColumnNames: id
+            constraintName: fk_workout_sets_workout
