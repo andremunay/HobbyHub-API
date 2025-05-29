@@ -8,17 +8,15 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/flashcards")
+@RequiredArgsConstructor
 public class FlashcardController {
   private final FlashcardService flashcardService;
-
-  public FlashcardController(FlashcardService flashcardService) {
-    this.flashcardService = flashcardService;
-  }
 
   @PostMapping
   public ResponseEntity<Void> create(@Valid @RequestBody FlashcardCreateRequest req) {
