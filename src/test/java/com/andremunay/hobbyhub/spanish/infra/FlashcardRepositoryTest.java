@@ -9,14 +9,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
-import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
-@DataJpaTest(
-    excludeAutoConfiguration = {LiquibaseAutoConfiguration.class, FlywayAutoConfiguration.class})
-@AutoConfigureTestDatabase
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(com.andremunay.hobbyhub.TestcontainersConfiguration.class)
+@Testcontainers
 public class FlashcardRepositoryTest {
 
   @Autowired private FlashcardRepository repository;
