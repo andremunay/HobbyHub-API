@@ -28,14 +28,19 @@ public class WorkoutSet {
   @JoinColumn(name = "workout_id")
   private Workout workout;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "exercise_id", nullable = false)
+  private Exercise exercise;
+
   @Column(name = "weight_kg", nullable = false)
   private BigDecimal weightKg;
 
   @Column(name = "reps", nullable = false)
   private int reps;
 
-  public WorkoutSet(WorkoutSetId id, BigDecimal weightKg, int reps) {
+  public WorkoutSet(WorkoutSetId id, Exercise exercise, BigDecimal weightKg, int reps) {
     this.id = id;
+    this.exercise = exercise;
     this.weightKg = weightKg;
     this.reps = reps;
   }

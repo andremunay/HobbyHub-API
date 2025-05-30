@@ -52,6 +52,9 @@ databaseChangeLog:
                   type: int
                   constraints:
                     nullable: false
+              - column:
+                  name: exercise_id
+                  type: UUID
 
         # 4) Foreign key from sets → workouts
         - addForeignKeyConstraint:
@@ -60,3 +63,9 @@ databaseChangeLog:
             referencedTableName: workouts
             referencedColumnNames: id
             constraintName: fk_workout_sets_workout
+        - addForeignKeyConstraint:
+            baseTableName: workout_sets
+            baseColumnNames: exercise_id
+            referencedTableName: exercises
+            referencedColumnNames: id
+            constraintName: fk_workout_sets_exercise
