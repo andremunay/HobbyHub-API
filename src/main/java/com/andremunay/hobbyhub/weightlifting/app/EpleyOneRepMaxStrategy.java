@@ -7,7 +7,14 @@ public class EpleyOneRepMaxStrategy implements OneRepMaxStrategy {
 
   @Override
   public double calculate(double weightKg, int reps) {
-    if (reps <= 0) throw new IllegalArgumentException("Reps must be >= 1");
+    if (reps <= 0) {
+      throw new IllegalArgumentException("Reps must be >= 1");
+    }
+    // Special‐case: if the lifter did exactly 1 rep, return the weight itself:
+    if (reps == 1) {
+      return weightKg;
+    }
+    // Otherwise use the Epley formula:
     return weightKg * (1 + (double) reps / 30);
   }
 }
