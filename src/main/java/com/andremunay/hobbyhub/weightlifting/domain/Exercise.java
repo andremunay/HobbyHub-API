@@ -26,6 +26,6 @@ public class Exercise {
   @Column(nullable = false, unique = true)
   private String name;
 
-  @Column(name = "muscle_group, nullable=false")
+  @Column(name = "muscle_group", nullable = false)
   private String muscleGroup;
 }

@@ -2,8 +2,10 @@ package com.andremunay.hobbyhub.weightlifting.app;
 
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
 import com.andremunay.hobbyhub.weightlifting.infra.WorkoutRepository;
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -48,5 +50,36 @@ public class WeightliftingService {
     }
 
     return regression.getSlope();
+  }
+
+  public List<WeightStatDto> getOneRepMaxStats(UUID exerciseId, int lastN) {
+    var page = PageRequest.of(0, lastN);
+
+    List<WorkoutSet> allSets = workoutRepo.findSetsByExerciseId(exerciseId, page);
+
+    Map<UUID, WorkoutSet> topSetPerWorkout =
+        allSets.stream()
+            .collect(
+                Collectors.groupingBy(
+                    ws -> ws.getWorkout().getId(),
+                    Collectors.collectingAndThen(
+                        Collectors.maxBy(Comparator.comparing(WorkoutSet::getWeightKg)),
+                        Optional::get)));
+
+    List<WorkoutSet> sortedTopSets =
+        topSetPerWorkout.values().stream()
+            .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
+            .collect(Collectors.toList());
+
+    return sortedTopSets.stream()
+        .map(
+            ws -> {
+              BigDecimal weight = ws.getWeightKg();
+              int reps = ws.getReps();
+              double oneRm = ormStrategy.calculate(weight.doubleValue(), reps);
+              return new WeightStatDto(
+                  ws.getWorkout().getId(), ws.getWorkout().getPerformedOn(), oneRm);
+            })
+        .collect(Collectors.toList());
   }
 }
