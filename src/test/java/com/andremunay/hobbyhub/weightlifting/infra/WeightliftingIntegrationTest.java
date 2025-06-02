@@ -82,8 +82,8 @@ class WeightliftingIntegrationTest {
 
   @Test
   void getOneRepMaxStats_returnsAscendingDatesAndCorrectValues() {
-    // Hit the endpoint: GET /stats/1rm/{exerciseId}?lastN=3
-    String url = "http://localhost:" + port + "/stats/1rm/" + exerciseId + "?lastN=3";
+    // Hit the endpoint: GET /weightlifting/stats/1rm/{exerciseId}?lastN=3
+    String url = "http://localhost:" + port + "/weightlifting/stats/1rm/" + exerciseId + "?lastN=3";
 
     ResponseEntity<List<WeightStat>> response =
         restTemplate.exchange(url, HttpMethod.GET, null, new ParameterizedTypeReference<>() {});

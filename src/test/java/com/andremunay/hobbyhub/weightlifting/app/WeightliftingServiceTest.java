@@ -6,6 +6,7 @@ import com.andremunay.hobbyhub.weightlifting.domain.Exercise;
 import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSetId;
+import com.andremunay.hobbyhub.weightlifting.infra.ExerciseRepository;
 import com.andremunay.hobbyhub.weightlifting.infra.WorkoutRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,8 +26,9 @@ public class WeightliftingServiceTest {
 
   @BeforeEach
   void setUp() {
-    repo = Mockito.mock(WorkoutRepository.class);
-    service = new WeightliftingService(repo, new EpleyOneRepMaxStrategy());
+    WorkoutRepository workoutRepo = Mockito.mock(WorkoutRepository.class);
+    ExerciseRepository exerciseRepo = Mockito.mock(ExerciseRepository.class);
+    service = new WeightliftingService(workoutRepo, exerciseRepo, new EpleyOneRepMaxStrategy());
   }
 
   @Test
