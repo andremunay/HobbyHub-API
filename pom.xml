@@ -150,7 +150,7 @@
 					<goals>
 						<goal>report</goal>
 					</goals>
-					</execution>
+					</execution>					
 				</executions>
 				<configuration>
 					<rules>
@@ -160,7 +160,7 @@
 						<limit>
 							<counter>INSTRUCTION</counter>
 							<value>COVEREDRATIO</value>
-							<minimum>0.0</minimum>
+							<minimum>0.80</minimum>
 						</limit>
 						</limits>
 					</rule>
