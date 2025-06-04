@@ -83,3 +83,22 @@ We began by drafting a one‐page architectural sketch to clarify module boundar
   Integrated Springdoc to expose `/swagger-ui/index.html`, making it trivial to manually explore and validate all REST endpoints.
 
 ---
+
+## [2025-06-03] Implemented Weightlifting Module & CI Quality Gates
+
+### Context
+
+Over the past three days, the Weightlifting module was built from the ground up: defining entities (Exercise, Workout, WorkoutSet), wiring up domain-level math services for one-rep-max and overload-trend calculations, creating repository queries and an integration test that validates the `/stats/1rm/{exerciseId}` endpoint via Testcontainers, and exposing REST endpoints (`POST /weightlifting/workouts` and `GET /weightlifting/stats/1rm/{exerciseId}`). Finally, we upgraded our CI pipeline to enforce a minimum 80 % JaCoCo coverage, cache Testcontainers downloads in GitHub Actions, and surface a coverage badge and HTML report link in README.
+
+### Lessons Learned
+
+* Lombok provides annotations (e.g. for `final` fields) that simplify constructor injection and automatically generate `equals`/`hashCode`.
+* Spring JPA’s `@EmbeddedId` and `@MapsId` allow composite keys and parent-child ID mapping without extra boilerplate.
+* Liquibase changelogs act as immutable version-controlled migrations—never manually edit an already-applied changelog.
+* Spring Data’s Pageable abstracts pagination—i.e., breaking a large query result into pages of a fixed size, so you can request just the “last N” rows instead of loading everything—and integrates seamlessly with custom JPQL.
+* `TestRestTemplate` in Spring Boot integration tests makes it trivial to hit real HTTP endpoints (e.g., `/stats/1rm/{exerciseId}`) against a Testcontainers-backed database.
+* Configuring JaCoCo’s Maven plugin with a `<check>` rule enforces a strict 80 % instruction-coverage threshold per module.
+* Caching `~/.testcontainers` in GitHub Actions dramatically speeds up repeated Testcontainers use.
+* Adding a Shields.io badge and uploading the JaCoCo HTML report as an artifact ensures code-coverage visibility alongside build status.
+
+---
