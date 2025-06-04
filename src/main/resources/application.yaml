@@ -1,0 +1,30 @@
+spring:
+  config:
+    import: "optional:dotenv:.env"
+
+  application:
+    name: hobbyhub
+
+  # --- Liquibase ---
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/master.yaml
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:hobbyhub}
+    username: ${POSTGRES_USER:hobbyuser}
+    password: ${POSTGRES_PASSWORD:hobbysecret}
+    driver-class-name: org.postgresql.Driver
+
+# --- Secrets & Configuration ---
+github:
+  oauth:
+    client-id: ${GITHUB_OAUTH_CLIENT_ID}    # injected via GitHub Actions
+    client-secret: ${GITHUB_OAUTH_CLIENT_SECRET}
+
+flyio:
+  token: ${FLY_API_TOKEN}
+
+registry:
+  username: ${REGISTRY_USERNAME}
+  password: ${REGISTRY_PASSWORD}

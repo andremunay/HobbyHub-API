@@ -6,6 +6,17 @@ HobbyHub API is a personal-skill tracker designed for hobbyists who want to deep
 
 ---
 
+## Secrets & Configuration
+
+- **GitHub OAuth**  
+  - `OAUTH_CLIENT_ID`  
+  - `OAUTH_CLIENT_SECRET`  
+- **Fly.io**  
+  - `FLY_API_TOKEN`  
+- **Container Registry**  
+  - `REGISTRY_USERNAME`  
+  - `REGISTRY_PASSWORD`
+
 ## Code Coverage
 
 ![Coverage](https://img.shields.io/github/actions/workflow/status/andremunay/HobbyHub-API/ci.yml?label=coverage&style=flat)

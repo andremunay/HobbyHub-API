@@ -4,6 +4,18 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # These environment variables will be available during the entire job.
+    env:
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+      OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +40,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Verify Build & Coverage
+      - name: Build & Run Tests (with coverage)
         run: ./mvnw -B clean verify
 
       - name: Archive JaCoCo Report
