@@ -22,6 +22,7 @@ HELP.md
 .factorypath
 .springBeans
 .sts4-cache
+*.sh
 
 # Spring Boot secrets/config
 
