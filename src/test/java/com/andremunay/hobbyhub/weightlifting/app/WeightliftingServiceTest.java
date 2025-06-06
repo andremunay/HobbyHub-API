@@ -59,7 +59,6 @@ public class WeightliftingServiceTest {
 
   @Test
   void computeOverloadTrend_usesCorrectPageRequestSize() {
-    Exercise e1 = new Exercise(UUID.randomUUID(), "Pull Up", "Pull");
 
     Mockito.when(repo.findSetsByExerciseId(Mockito.eq(exerciseId), Mockito.any(PageRequest.class)))
         .thenReturn(List.of());
