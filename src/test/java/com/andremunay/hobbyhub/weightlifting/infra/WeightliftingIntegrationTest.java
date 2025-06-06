@@ -2,11 +2,15 @@ package com.andremunay.hobbyhub.weightlifting.infra;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.andremunay.hobbyhub.weightlifting.domain.Exercise;
 import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSetId;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,29 +21,27 @@ import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Import(com.andremunay.hobbyhub.TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 @Testcontainers
+@Transactional
 class WeightliftingIntegrationTest {
 
-  @LocalServerPort private int port;
-
-  @Autowired private TestRestTemplate restTemplate;
-
+  @Autowired private MockMvc mockMvc;
   @Autowired private ExerciseRepository exerciseRepo;
-
   @Autowired private WorkoutRepository workoutRepo;
+  @Autowired private ObjectMapper objectMapper;
 
   private UUID exerciseId;
 
@@ -80,28 +82,31 @@ class WeightliftingIntegrationTest {
     workoutRepo.saveAll(List.of(w1, w2, w3));
   }
 
+  @WithMockUser(
+      username = "testuser",
+      roles = {"USER"})
   @Test
-  void getOneRepMaxStats_returnsAscendingDatesAndCorrectValues() {
+  void getOneRepMaxStats_returnsAscendingDatesAndCorrectValues() throws Exception {
     // Hit the endpoint: GET /weightlifting/stats/1rm/{exerciseId}?lastN=3
-    String url = "http://localhost:" + port + "/weightlifting/stats/1rm/" + exerciseId + "?lastN=3";
+    String url = "/weightlifting/stats/1rm/" + exerciseId + "?lastN=3";
 
-    ResponseEntity<List<WeightStat>> response =
-        restTemplate.exchange(url, HttpMethod.GET, null, new ParameterizedTypeReference<>() {});
+    MvcResult result = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    List<WeightStat> body = response.getBody();
-    assertThat(body).isNotNull().hasSize(3);
+    String json = result.getResponse().getContentAsString();
+    List<WeightStat> stats = objectMapper.readValue(json, new TypeReference<>() {});
+
+    assertThat(stats).isNotNull().hasSize(3);
 
     // The JSON should be sorted by date ascending: [2025-05-01, 2025-05-02, 2025-05-03]
-    assertThat(body.get(0).getDate()).isEqualTo(LocalDate.of(2025, 5, 1));
-    assertThat(body.get(1).getDate()).isEqualTo(LocalDate.of(2025, 5, 2));
-    assertThat(body.get(2).getDate()).isEqualTo(LocalDate.of(2025, 5, 3));
+    assertThat(stats.get(0).getDate()).isEqualTo(LocalDate.of(2025, 5, 1));
+    assertThat(stats.get(1).getDate()).isEqualTo(LocalDate.of(2025, 5, 2));
+    assertThat(stats.get(2).getDate()).isEqualTo(LocalDate.of(2025, 5, 3));
 
     // Epley 1RM formula: for weight=50, reps=5 → 50 * (1 + 5/30) = 58.3333…
     // for 60 & 5 → 60 * (1 + 5/30) = 69.9999…, for 70 & 5 → 81.6666…
-    double rm1 = body.get(0).getOneRepMax();
-    double rm2 = body.get(1).getOneRepMax();
-    double rm3 = body.get(2).getOneRepMax();
+    double rm1 = stats.get(0).getOneRepMax();
+    double rm2 = stats.get(1).getOneRepMax();
+    double rm3 = stats.get(2).getOneRepMax();
 
     assertThat(rm1).isCloseTo(58.3333, within(1e-3));
     assertThat(rm2).isCloseTo(70.0000, within(1e-3));
