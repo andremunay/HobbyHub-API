@@ -1,17 +1,24 @@
 package com.andremunay.hobbyhub;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.logout;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -50,10 +57,18 @@ class SecurityIntegrationTest {
    * use @WithMockUser to bypass real OAuth.
    */
   @Test
-  @WithMockUser(username = "testuser")
-  void whenAuthenticated_thenAccessHome() throws Exception {
-    mockMvc.perform(get("/")).andExpect(status().isOk());
-    // assuming your home page returns 200 OK when authenticated
+  void whenAuthenticated_thenAccessWelcomePage() throws Exception {
+    // Simulate GitHub OAuth2 user with a "login" attribute
+    Map<String, Object> attributes = Map.of("login", "testuser");
+
+    var principal = new DefaultOAuth2User(List.of(() -> "ROLE_USER"), attributes, "login");
+
+    var auth = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "github");
+
+    mockMvc
+        .perform(get("/welcome").with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Welcome, testuser")));
   }
 
   /** Test logout flows to “/” after signing out. */
