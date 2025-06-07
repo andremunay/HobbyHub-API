@@ -5,6 +5,7 @@
 *.war
 *.log
 !.mvn/wrapper/maven-wrapper.jar
+*.sh
 
 # Optional Spring Init file
 HELP.md
@@ -22,7 +23,6 @@ HELP.md
 .factorypath
 .springBeans
 .sts4-cache
-*.sh
 
 # Spring Boot secrets/config
 
