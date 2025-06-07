@@ -23,7 +23,7 @@ spring:
     change-log: classpath:db/changelog/master.yaml
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
+    url: jdbc:postgresql://db:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -40,3 +40,15 @@ flyio:
 registry:
   username: ${REGISTRY_USERNAME}
   password: ${REGISTRY_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: hobbyhub-api
+  endpoint:
+    prometheus:
+      enabled: true
