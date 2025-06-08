@@ -91,3 +91,4 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           REGISTRY_AUTH_USERNAME:  ${{ secrets.GHCR_USERNAME }}
           REGISTRY_AUTH_TOKEN:     ${{ secrets.GHCR_TOKEN }}
+          
