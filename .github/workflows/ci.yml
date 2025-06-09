@@ -69,10 +69,18 @@ jobs:
         with:
           push: true
           tags: |
+            ${{ env.REGISTRY }}:${{ github.head_ref || github.ref_name }}
+
+      - name: Push :latest tag (main only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: |
             ${{ env.REGISTRY }}:latest
-            ${{ env.REGISTRY }}:${{ github.ref_name }}
 
   deploy-prod:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build-test
     runs-on: ubuntu-latest
     environment: production
@@ -91,4 +99,3 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           REGISTRY_AUTH_USERNAME:  ${{ secrets.GHCR_USERNAME }}
           REGISTRY_AUTH_TOKEN:     ${{ secrets.GHCR_TOKEN }}
-          

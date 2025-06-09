@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/V3__weightlifting_schema.yaml
   - include:
       file: db/changelog/V3__exercise_seed.yaml
+  - include:
+      file: db/changelog/V4__update_flashcard_schema.yaml

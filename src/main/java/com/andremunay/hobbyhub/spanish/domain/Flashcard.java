@@ -28,12 +28,16 @@ public class Flashcard {
   @Column(nullable = false)
   private String back;
 
+  @Column(nullable = false)
   private int repetition;
+
+  @Column(nullable = false, name = "easiness_factor")
   private double easinessFactor;
 
-  @Column(name = "interval_days")
+  @Column(nullable = false, name = "interval_days")
   private int interval;
 
+  @Column(nullable = false, name = "next_review_on")
   private LocalDate nextReviewOn;
 
   public Flashcard(UUID id, String front, String back) {

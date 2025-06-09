@@ -1,0 +1,48 @@
+# flyctl launch added from .gitignore
+# Java / Maven
+target
+**\*.class
+**\*.jar
+**\*.war
+**\*.log
+!**\.mvn\wrapper\maven-wrapper.jar
+**\*.sh
+
+# Optional Spring Init file
+**\HELP.md
+
+# IDEs
+**\.idea
+**\*.iml
+**\.vscode
+**\*.iws
+**\*.ipr
+**\.classpath
+**\.project
+**\.settings
+**\.apt_generated
+**\.factorypath
+**\.springBeans
+**\.sts4-cache
+fly-postgres-credentials
+
+# Spring Boot secrets/config
+
+# Docker
+**\.env
+
+# OS junk
+**\.DS_Store
+**\Thumbs.db
+
+# NetBeans / Gradle
+nbproject\private
+nbbuild
+dist
+nbdist
+.nb-gradle
+**\build
+
+# Spotless
+**\**\spotless.*.backup
+fly.toml
