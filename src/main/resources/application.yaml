@@ -16,6 +16,8 @@ spring:
 
   main:
     banner-mode: "off"
+  jpa:
+    open-in-view: false
 
   # --- Liquibase ---
   liquibase:
@@ -23,10 +25,12 @@ spring:
     change-log: classpath:db/changelog/master.yaml
 
   datasource:
-    url: jdbc:postgresql://db:5432/${POSTGRES_DB}
-    username: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
+    url: ${JDBC_DATABASE_URL}
     driver-class-name: org.postgresql.Driver
+
+server:
+  address: 0.0.0.0
+  port: 8080
 
 # --- Secrets & Configuration ---
 github:
@@ -37,18 +41,14 @@ github:
 flyio:
   token: ${FLY_API_TOKEN}
 
-registry:
-  username: ${REGISTRY_USERNAME}
-  password: ${REGISTRY_PASSWORD}
-
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
-  metrics:
-    tags:
-      application: hobbyhub-api
+        include: health,info,metrics, prometheus
   endpoint:
     prometheus:
       enabled: true
+  metrics:
+    tags:
+      application: hobbyhub-api

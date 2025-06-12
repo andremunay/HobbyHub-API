@@ -19,8 +19,6 @@ HobbyHub API is a personal-skill tracker designed for hobbyists who want to deep
 
 ## Code Coverage
 
-![Coverage](https://img.shields.io/github/actions/workflow/status/andremunay/HobbyHub-API/ci.yml?label=coverage&style=flat)
-
 - We enforce a minimum **80 % instruction coverage** via JaCoCo.  
 - To view the full HTML report:
   1. Go to the **Actions** tab → select the latest **CI** run.  

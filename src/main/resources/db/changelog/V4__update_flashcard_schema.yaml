@@ -1,0 +1,81 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5
+      author: andremunay
+      changes:
+        - update:
+            tableName: flashcards
+            columns:
+              - column:
+                  name: easiness_factor
+                  valueNumeric: 2.5
+              - column:
+                  name: interval_days
+                  valueNumeric: 1
+              - column:
+                  name: next_review_on
+                  valueDate: CURRENT_DATE
+              - column: 
+                  name: repetition
+                  valueNumeric: 0
+            where: "easiness_factor IS NULL OR interval_days IS NULL OR next_review_on IS NULL OR repetition IS NULL"
+
+        - modifyDataType:
+            tableName: flashcards
+            columnName: easiness_factor
+            newDataType: DECIMAL(3,2)
+
+        - addNotNullConstraint:
+            tableName: flashcards
+            columnName: easiness_factor
+            columnDataType: DECIMAL(3,2)
+
+        - addDefaultValue:
+            tableName: flashcards
+            columnName: easiness_factor
+            defaultValueNumeric: 2.5
+
+        - modifyDataType:
+            tableName: flashcards
+            columnName: interval_days
+            newDataType: INT
+
+        - addNotNullConstraint:
+            tableName: flashcards
+            columnName: interval_days
+            columnDataType: INT
+
+        - addDefaultValue:
+            tableName: flashcards
+            columnName: interval_days
+            defaultValueNumeric: 1
+
+        - modifyDataType:
+            tableName: flashcards
+            columnName: next_review_on
+            newDataType: DATE
+
+        - addNotNullConstraint:
+            tableName: flashcards
+            columnName: next_review_on
+            columnDataType: DATE
+
+        - addDefaultValue:
+            tableName: flashcards
+            columnName: next_review_on
+            defaultValueComputed: CURRENT_DATE
+
+        - modifyDataType:
+            tableName: flashcards
+            columnName: repetition
+            newDataType: INT
+
+        - addNotNullConstraint:
+            tableName: flashcards
+            columnName: repetition
+            columnDataType: INT
+
+        - addDefaultValue:
+            tableName: flashcards
+            columnName: repetition
+            defaultValueNumeric: 0
