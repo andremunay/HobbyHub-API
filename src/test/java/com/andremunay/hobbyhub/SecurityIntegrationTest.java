@@ -62,19 +62,18 @@ class SecurityIntegrationTest {
   void whenAuthenticated_thenAccessWelcomePage() throws Exception {
     Map<String, Object> attributes = Map.of("name", "Test User");
 
-    var principal =
-        new DefaultOAuth2User(
-            List.of(() -> "ROLE_USER"),
-            attributes,
-            "name" // This must match the attribute used to extract the principal name
-            );
+    var principal = new DefaultOAuth2User(List.of(() -> "ROLE_USER"), attributes, "name");
 
     var auth = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "github");
 
     mockMvc
         .perform(get("/welcome").with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("Welcome, Test User")));
+        .andExpect(
+            content()
+                .string(
+                    containsString(
+                        "<h1 class=\"text-3xl font-bold mb-6\">Welcome to HobbyHub API</h1>")));
   }
 
   /** Test logout flows to “/” after signing out. */
