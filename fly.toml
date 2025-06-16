@@ -6,6 +6,8 @@ primary_region = "sea"
 
 [env]
   PORT = "8080"
+  SPRING_PROFILES_ACTIVE = "fly"
+  JAVA_OPTS = "-Xmx300m -Xms64m"
 
 [vm]
   memory = 1024
@@ -36,3 +38,12 @@ primary_region = "sea"
     method = "GET"
     path = "/actuator/health"
     protocol = "http"
+
+  [[services.checks]]
+    type = "http"
+    interval = "10s"
+    timeout = "5s"
+    method = "GET"
+    path = "/actuator/health?group=readiness"
+    protocol = "http"
+    tls_skip_verify = false

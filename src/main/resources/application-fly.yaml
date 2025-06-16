@@ -45,10 +45,38 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics, prometheus
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
   endpoint:
     prometheus:
       enabled: true
-  metrics:
-    tags:
-      application: hobbyhub-api
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include:
+            - db
+    metrics:
+      tags:
+        application: hobbyhub-api
+
+  health:
+    db:
+      enabled: true
+    readiness:
+      enabled: true
+      include:
+        - db
+    liveness:
+      enabled: true
+      include:
+        - none
+
+logging:
+  level:
+    root: INFO
