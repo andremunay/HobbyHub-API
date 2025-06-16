@@ -12,10 +12,15 @@ services:
 
   api:
     build: .
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - JAVA_OPTS=
     ports:
       - "8080:8080"
     env_file:
       - .env
+    depends_on:
+      - db
 
   prometheus:
     image: prom/prometheus:latest

@@ -1,0 +1,81 @@
+spring:
+  config:
+    import: "optional:dotenv:.env"
+
+  application:
+    name: hobbyhub
+
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: dummy
+            client-secret: dummy
+    enabled: false
+
+  main:
+    banner-mode: "off"
+  jpa:
+    open-in-view: false
+
+  # --- Liquibase ---
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/master.yaml
+
+  datasource:
+    url: jdbc:postgresql://db:5432/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+server:
+  address: 0.0.0.0
+  port: 8080
+
+# --- Secrets & Configuration ---
+github:
+  oauth:
+    client-id: ${OAUTH_CLIENT_ID}    # injected via GitHub Actions
+    client-secret: ${OAUTH_CLIENT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include:
+            - db
+    metrics:
+      tags:
+        application: hobbyhub-api
+
+  health:
+    db:
+      enabled: true
+    readiness:
+      enabled: true
+      include:
+        - db
+    liveness:
+      enabled: true
+      include:
+        - none
+
+logging:
+  level:
+    root: DEBUG

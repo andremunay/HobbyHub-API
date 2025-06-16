@@ -10,6 +10,7 @@ public class HomeController {
 
   @GetMapping("/welcome")
   public String welcome(@AuthenticationPrincipal OAuth2User principal) {
-    return "Welcome, " + principal.getAttribute("login");
+    String name = (principal != null) ? principal.getAttribute("name") : "Guest";
+    return "Welcome, " + name;
   }
 }

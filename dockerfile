@@ -1,13 +1,24 @@
-# 1) Build stage: compile & package with JDK
+# --- Stage 1: Build with Maven ---
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 COPY . .
 RUN ./mvnw -B package -DskipTests
 
-# 2) Run stage: slim runtime image with just the JRE
+# --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre
-ARG JAR_FILE=target/*-SNAPSHOT.jar
-COPY --from=builder /app/${JAR_FILE} app.jar
+WORKDIR /app
 
-# Set heap size for safe operation in 512MB Fly VM
-ENTRYPOINT ["java", "-Xmx300m", "-Xms64m", "-jar", "/app.jar"]
+# Copy jar from build stage
+COPY --from=builder /app/target/hobbyhub-0.0.1-SNAPSHOT.jar app.jar
+
+# Spring profile (defaults to 'fly' if not set explicitly)
+ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-fly}
+
+# Optional JVM heap flags – set these only if a special env var is defined
+ENV JAVA_OPTS=""
+
+# Fly sets this in fly.toml: `JAVA_OPTS="-Xmx300m -Xms64m"`
+# In local dev, you can omit it or override it to empty
+
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
