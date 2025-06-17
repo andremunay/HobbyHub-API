@@ -8,7 +8,6 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,14 +26,14 @@ public class FlashcardService {
 
   /** Retrieve all flashcards as DTOs. */
   public Collection<FlashcardReviewDto> getAll() {
-    return repository.findAll().stream().map(this::toDto).collect(Collectors.toList());
+    return repository.findAll().stream().map(this::toDto).toList();
   }
 
   /** Retrieve only flashcards due for review on or before the given date. */
   public List<FlashcardReviewDto> getDue(LocalDate today) {
     // 1) load due cards from DB
     List<Flashcard> dueCards = repository.findByNextReviewOnLessThanEqual(today);
-    return dueCards.stream().map(this::toDto).collect(Collectors.toList());
+    return dueCards.stream().map(this::toDto).toList();
   }
 
   private FlashcardReviewDto toDto(Flashcard card) {

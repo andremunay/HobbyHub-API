@@ -9,5 +9,8 @@ import org.springframework.context.annotation.Import;
 class HobbyhubApplicationTests {
 
   @Test
-  void contextLoads() {}
+  void contextLoads() {
+    // This test ensures the Spring context loads without issues.
+    // It is intentionally left blank.
+  }
 }

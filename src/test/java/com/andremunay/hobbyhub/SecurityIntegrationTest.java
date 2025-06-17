@@ -43,7 +43,6 @@ class SecurityIntegrationTest {
         .perform(get("/flashcards"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrlPattern("**/oauth2/authorization/github"));
-    // by default Spring’s OAuth login entry point is /oauth2/authorization/{registrationId}
   }
 
   /**

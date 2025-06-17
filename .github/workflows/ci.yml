@@ -2,9 +2,9 @@ name: CI-CD
 
 on:
   pull_request:
-    branches: [ "**" ]
+    branches: [ "*" ]
   push:
-    branches: [ "**" ]
+    branches: [ "*" ]
 
 env:
   REGISTRY: ghcr.io/andremunay/hobbyhub-api
@@ -13,15 +13,22 @@ jobs:
 
   build-test:
     runs-on: ubuntu-latest
-    
 
+    # only what the tests & Sonar need
     env:
-      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      # Testcontainers / integration-test database
+      POSTGRES_DB:     ${{ secrets.POSTGRES_DB }}
+      POSTGRES_USER:   ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+
+      # OAuth used by tests
+      OAUTH_CLIENT_ID:     ${{ secrets.OAUTH_CLIENT_ID }}
       OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # SonarCloud analysis
+      SONAR_TOKEN:        ${{ secrets.SONAR_TOKEN }}
+      SONAR_PROJECT_KEY:  ${{ secrets.SONAR_PROJECT_KEY }}
+      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
 
     steps:
       - name: Checkout repository
@@ -57,6 +64,14 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
+      - name: Analyze with SonarCloud
+        run: |
+          ./mvnw verify sonar:sonar \
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }} \
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token=${{ env.SONAR_TOKEN }}
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -84,10 +99,11 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     environment: production
+
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4      
-          
+        uses: actions/checkout@v4
+
       - name: Deploy to Fly.io
         uses: superfly/flyctl-actions@1.4
         with:
@@ -95,7 +111,8 @@ jobs:
             deploy
             --image ${{ env.REGISTRY }}:latest
             --app hobbyhub-api
+        # only this step needs Fly & GHCR creds
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN:           ${{ secrets.FLY_API_TOKEN }}
           REGISTRY_AUTH_USERNAME:  ${{ secrets.GHCR_USERNAME }}
           REGISTRY_AUTH_TOKEN:     ${{ secrets.GHCR_TOKEN }}

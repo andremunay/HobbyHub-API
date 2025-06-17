@@ -19,7 +19,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(com.andremunay.hobbyhub.TestcontainersConfiguration.class)
 @Testcontainers
-public class FlashcardRepositoryTest {
+class FlashcardRepositoryTest {
 
   @Autowired private FlashcardRepository repository;
 
