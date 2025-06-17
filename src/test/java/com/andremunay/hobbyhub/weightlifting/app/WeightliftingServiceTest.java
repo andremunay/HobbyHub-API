@@ -18,7 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.data.domain.PageRequest;
 
-public class WeightliftingServiceTest {
+class WeightliftingServiceTest {
 
   private WorkoutRepository repo;
   private WeightliftingService service;

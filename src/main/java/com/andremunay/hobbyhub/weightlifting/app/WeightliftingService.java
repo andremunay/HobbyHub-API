@@ -84,7 +84,7 @@ public class WeightliftingService {
     List<WorkoutSet> sortedTopSets =
         topSetPerWorkout.values().stream()
             .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
-            .collect(Collectors.toList());
+            .toList();
 
     // 5) Map each to OneRmPoint DTO
     return sortedTopSets.stream()
@@ -96,7 +96,7 @@ public class WeightliftingService {
               return new OneRmPoint(
                   ws.getWorkout().getId(), ws.getWorkout().getPerformedOn(), oneRm);
             })
-        .collect(Collectors.toList());
+        .toList();
   }
 
   /**

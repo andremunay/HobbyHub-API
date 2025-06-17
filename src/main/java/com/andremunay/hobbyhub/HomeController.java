@@ -29,6 +29,7 @@ public class HomeController {
 
             <h2 class="text-xl font-semibold mt-6">Ops</h2>
             <a href="/actuator/metrics" class="text-blue-600 hover:underline">Actuator Metrics</a>
+            <a href="/actuator/health" class="text-blue-600 hover:underline">Actuator Health</a>
             <a href="/actuator/prometheus" class="text-blue-600 hover:underline">Prometheus Scrape</a>
             <a href="https://hobbyhub-prometheus.fly.dev" class="text-blue-600 hover:underline" target="_blank">Prometheus Dashboard</a>
           </div>

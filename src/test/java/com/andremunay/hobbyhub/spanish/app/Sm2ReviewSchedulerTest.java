@@ -8,6 +8,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class Sm2ReviewSchedulerTest {
 
@@ -48,35 +50,18 @@ class Sm2ReviewSchedulerTest {
     assertEquals(today.plusDays(6), reviewed.getNextReviewOn());
   }
 
-  @Test
-  void shouldIncreaseIntervalUsingEFWhenRepetitionIs3Plus() {
-    Flashcard card = createCard(2, 2.5, 6);
-    Flashcard reviewed = scheduler.review(card, 5, today);
+  @ParameterizedTest
+  @CsvSource({
+    "2.5, 5, 15", // EF = 2.5, grade = 5 → expected interval = 6 * 2.5 = 15
+    "2.0, 3, 12", // EF = 2.0, grade = 3
+    "2.0, 4, 12" // EF = 2.0, grade = 4
+  })
+  void shouldUseEasinessFactorWhenReviewingWithGoodGrades(
+      double ef, int grade, int expectedInterval) {
+    Flashcard card = createCard(2, ef, 6);
+    Flashcard reviewed = scheduler.review(card, grade, today);
 
     assertEquals(3, reviewed.getRepetition());
-    int expectedInterval = (int) Math.round(6 * 2.5);
-    assertEquals(expectedInterval, reviewed.getInterval());
-    assertEquals(today.plusDays(expectedInterval), reviewed.getNextReviewOn());
-  }
-
-  @Test
-  void shouldHandleGradeOfThreeAsCorrect() {
-    Flashcard card = createCard(2, 2.0, 6);
-    Flashcard reviewed = scheduler.review(card, 3, today);
-
-    assertEquals(3, reviewed.getRepetition());
-    int expectedInterval = (int) Math.round(6 * 2.0);
-    assertEquals(expectedInterval, reviewed.getInterval());
-    assertEquals(today.plusDays(expectedInterval), reviewed.getNextReviewOn());
-  }
-
-  @Test
-  void shouldHandleGradeOfFourAsCorrect() {
-    Flashcard card = createCard(2, 2.0, 6);
-    Flashcard reviewed = scheduler.review(card, 4, today);
-
-    assertEquals(3, reviewed.getRepetition());
-    int expectedInterval = (int) Math.round(6 * 2.0);
     assertEquals(expectedInterval, reviewed.getInterval());
     assertEquals(today.plusDays(expectedInterval), reviewed.getNextReviewOn());
   }

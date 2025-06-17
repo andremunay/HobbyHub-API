@@ -27,7 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @Transactional
-public class SpanishIntegrationTest {
+class SpanishIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper mapper;
