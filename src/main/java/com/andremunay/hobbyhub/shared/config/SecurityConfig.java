@@ -37,6 +37,12 @@ public class SecurityConfig {
                     new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/github")))
         .oauth2Login(oauth -> oauth.defaultSuccessUrl("/welcome", true))
         .logout(logout -> logout.logoutSuccessUrl("/").permitAll())
+        .headers(
+            headers ->
+                headers.contentSecurityPolicy(
+                    csp ->
+                        csp.policyDirectives(
+                            "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com")))
         .csrf(csrf -> csrf.disable());
 
     return http.build();

@@ -25,6 +25,12 @@ public class LocalSecurityConfig {
                     .permitAll()
                     .anyRequest()
                     .permitAll())
+        .headers(
+            headers ->
+                headers.contentSecurityPolicy(
+                    csp ->
+                        csp.policyDirectives(
+                            "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com")))
         .csrf(csrf -> csrf.disable());
 
     return http.build();
