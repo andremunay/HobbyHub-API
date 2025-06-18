@@ -26,6 +26,8 @@ public class HomeController {
 
           <div class="grid gap-4">
             <a href="/swagger-ui/index.html" class="text-blue-600 hover:underline">Swagger UI</a>
+            <a href="https://elements-demo.stoplight.io/?spec=https://hobbyhub-api.fly.dev/v3/api-docs"
+              class="text-blue-600 hover:underline">Stoplight API Docs</a>
 
             <h2 class="text-xl font-semibold mt-6">Ops</h2>
             <a href="/actuator/metrics" class="text-blue-600 hover:underline">Actuator Metrics</a>

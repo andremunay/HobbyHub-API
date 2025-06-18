@@ -24,3 +24,8 @@ HobbyHub API is a personal-skill tracker designed for hobbyists who want to deep
   1. Go to the **Actions** tab → select the latest **CI** run.  
   2. Under **Artifacts**, click **jacoco-report** to download.  
   3. Unzip and open `index.html` in a browser for class-by-class coverage details.
+
+## Developer Docs
+
+- [Swagger UI](https://hobbyhub-api.fly.dev/swagger-ui/index.html) – Live interactive playground
+- [Stoplight Elements](https://elements-demo.stoplight.io/?spec=https://hobbyhub-api.fly.dev/v3/api-docs) – Rendered OpenAPI spec for client SDK generation
