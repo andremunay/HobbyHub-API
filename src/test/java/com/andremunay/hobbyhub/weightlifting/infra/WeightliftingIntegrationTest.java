@@ -2,13 +2,19 @@ package com.andremunay.hobbyhub.weightlifting.infra;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.andremunay.hobbyhub.weightlifting.domain.Exercise;
 import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSetId;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.ExerciseDto;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutDto;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutSetDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -25,6 +31,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -111,6 +118,198 @@ class WeightliftingIntegrationTest {
     assertThat(rm1).isCloseTo(58.3333, within(1e-3));
     assertThat(rm2).isCloseTo(70.0000, within(1e-3));
     assertThat(rm3).isCloseTo(81.6667, within(1e-3));
+  }
+
+  @WithMockUser(
+      username = "testuser",
+      roles = {"USER"})
+  @Test
+  void createWorkout_thenAddSet_succeeds() throws Exception {
+    // Step 1: Build workout with 1 initial set
+    WorkoutDto workoutRequest = new WorkoutDto();
+    workoutRequest.setPerformedOn(LocalDate.of(2025, 6, 18));
+
+    WorkoutSetDto initialSet = new WorkoutSetDto();
+    initialSet.setOrder(1);
+    initialSet.setWeightKg(BigDecimal.valueOf(50));
+    initialSet.setReps(5);
+    initialSet.setExerciseId(exerciseId);
+
+    workoutRequest.setSets(List.of(initialSet));
+
+    // Serialize and post workout
+    String workoutJson = objectMapper.writeValueAsString(workoutRequest);
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/weightlifting/workouts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(workoutJson))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    String raw = result.getResponse().getContentAsString().replace("\"", "");
+    UUID workoutId = UUID.fromString(raw);
+
+    // Step 2: Add a second set to the workout
+    WorkoutSetDto additionalSet = new WorkoutSetDto();
+    additionalSet.setOrder(2);
+    additionalSet.setWeightKg(BigDecimal.valueOf(55));
+    additionalSet.setReps(4);
+    additionalSet.setExerciseId(exerciseId);
+
+    String setJson = objectMapper.writeValueAsString(additionalSet);
+
+    mockMvc
+        .perform(
+            post("/weightlifting/workouts/" + workoutId + "/sets")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(setJson))
+        .andDo(print())
+        .andExpect(status().isOk());
+  }
+
+  @WithMockUser(
+      username = "testuser",
+      roles = {"USER"})
+  @Test
+  void createExercise_succeeds() throws Exception {
+    // Step 1: build request
+    ExerciseDto req = new ExerciseDto();
+    req.setName("Squat");
+    req.setMuscleGroup("Legs");
+
+    String json = objectMapper.writeValueAsString(req);
+
+    // Step 2: POST /weightlifting/exercises
+    MvcResult mvc =
+        mockMvc
+            .perform(
+                post("/weightlifting/exercises")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    // Step 3: parse ID and assert persistence
+    UUID id = UUID.fromString(mvc.getResponse().getContentAsString().replace("\"", ""));
+    assertThat(exerciseRepo.findById(id)).isPresent();
+  }
+
+  @WithMockUser(
+      username = "testuser",
+      roles = {"USER"})
+  @Test
+  void getWorkout_withSets_returnsCorrectDto() throws Exception {
+    // Arrange: reuse create+addSet flow to get a workoutId
+    WorkoutDto workoutReq = new WorkoutDto();
+    workoutReq.setPerformedOn(LocalDate.of(2025, 6, 18));
+    WorkoutSetDto set = new WorkoutSetDto();
+    set.setOrder(1);
+    set.setWeightKg(BigDecimal.valueOf(80));
+    set.setReps(3);
+    set.setExerciseId(exerciseId);
+    workoutReq.setSets(List.of(set));
+    String wJson = objectMapper.writeValueAsString(workoutReq);
+
+    String rawId =
+        mockMvc
+            .perform(
+                post("/weightlifting/workouts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(wJson))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString()
+            .replace("\"", "");
+    UUID workoutId = UUID.fromString(rawId);
+
+    // Act: GET the workout
+    MvcResult getRes =
+        mockMvc
+            .perform(get("/weightlifting/workouts/" + workoutId))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    // Assert: deserialize and verify
+    WorkoutDto dto =
+        objectMapper.readValue(
+            getRes.getResponse().getContentAsString(), new TypeReference<WorkoutDto>() {});
+
+    assertThat(dto.getPerformedOn()).isEqualTo(LocalDate.of(2025, 6, 18));
+    assertThat(dto.getSets()).hasSize(1);
+    WorkoutSetDto retSet = dto.getSets().get(0);
+    assertThat(retSet.getOrder()).isEqualTo(1);
+    assertThat(retSet.getWeightKg()).isEqualByComparingTo(BigDecimal.valueOf(80));
+    assertThat(retSet.getReps()).isEqualTo(3);
+  }
+
+  @WithMockUser(
+      username = "testuser",
+      roles = {"USER"})
+  @Test
+  void deleteWorkout_succeeds() throws Exception {
+    // Arrange: create a workout
+    WorkoutDto wr = new WorkoutDto();
+    wr.setPerformedOn(LocalDate.of(2025, 6, 19));
+    WorkoutSetDto s = new WorkoutSetDto();
+    s.setOrder(1);
+    s.setWeightKg(BigDecimal.valueOf(65));
+    s.setReps(8);
+    s.setExerciseId(exerciseId);
+    wr.setSets(List.of(s));
+    String json = objectMapper.writeValueAsString(wr);
+
+    String idRaw =
+        mockMvc
+            .perform(
+                post("/weightlifting/workouts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString()
+            .replace("\"", "");
+    UUID wid = UUID.fromString(idRaw);
+
+    // Act: DELETE /weightlifting/workouts/{id}
+    mockMvc.perform(delete("/weightlifting/workouts/" + wid)).andExpect(status().isNoContent());
+
+    // Assert: no longer present
+    assertThat(workoutRepo.findById(wid)).isEmpty();
+  }
+
+  @WithMockUser(
+      username = "testuser",
+      roles = {"USER"})
+  @Test
+  void deleteExercise_succeeds() throws Exception {
+    // Arrange: create an exercise
+    ExerciseDto ex = new ExerciseDto();
+    ex.setName("Deadlift");
+    ex.setMuscleGroup("Back");
+    String exJson = objectMapper.writeValueAsString(ex);
+
+    String exIdRaw =
+        mockMvc
+            .perform(
+                post("/weightlifting/exercises")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(exJson))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString()
+            .replace("\"", "");
+    UUID exId = UUID.fromString(exIdRaw);
+
+    // Act: DELETE /weightlifting/exercises/{id}
+    mockMvc.perform(delete("/weightlifting/exercises/" + exId)).andExpect(status().isNoContent());
+
+    // Assert: removed
+    assertThat(exerciseRepo.findById(exId)).isEmpty();
   }
 
   // Helper class to map JSON response (the field names must match WeightStatDto)

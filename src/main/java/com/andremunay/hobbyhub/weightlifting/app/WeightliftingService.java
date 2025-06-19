@@ -6,8 +6,11 @@ import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSetId;
 import com.andremunay.hobbyhub.weightlifting.infra.ExerciseRepository;
 import com.andremunay.hobbyhub.weightlifting.infra.WorkoutRepository;
-import com.andremunay.hobbyhub.weightlifting.infra.dto.OneRmPoint;
-import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutCreateRequest;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.ExerciseDto;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.OneRmPointDto;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutDto;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutSetDto;
+import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -61,9 +64,9 @@ public class WeightliftingService {
     return regression.getSlope();
   }
 
-  /** Given an exerciseId and lastN, compute a list of OneRmPoint sorted by date ascending. */
+  /** Given an exerciseId and lastN, compute a list of OneRmPointDto sorted by date ascending. */
   @Transactional(readOnly = true)
-  public List<OneRmPoint> getOneRepMaxStats(UUID exerciseId, int lastN) {
+  public List<OneRmPointDto> getOneRepMaxStats(UUID exerciseId, int lastN) {
     // 1) wrap lastN into a Pageable
     var page = PageRequest.of(0, lastN);
 
@@ -86,14 +89,14 @@ public class WeightliftingService {
             .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
             .toList();
 
-    // 5) Map each to OneRmPoint DTO
+    // 5) Map each to OneRmPointDto DTO
     return sortedTopSets.stream()
         .map(
             ws -> {
               BigDecimal weight = ws.getWeightKg();
               int reps = ws.getReps();
               double oneRm = ormStrategy.calculate(weight.doubleValue(), reps);
-              return new OneRmPoint(
+              return new OneRmPointDto(
                   ws.getWorkout().getId(), ws.getWorkout().getPerformedOn(), oneRm);
             })
         .toList();
@@ -104,7 +107,7 @@ public class WeightliftingService {
    * Workout UUID.
    */
   @Transactional
-  public UUID createWorkout(WorkoutCreateRequest req) {
+  public UUID createWorkout(WorkoutDto req) {
     // 1) Map top‐level fields
     Workout workout = new Workout();
     workout.setId(UUID.randomUUID());
@@ -116,7 +119,7 @@ public class WeightliftingService {
             .map(
                 dto -> {
                   // 2a) Lookup Exercise entity (throws if not found)
-                  UUID exId = UUID.fromString(dto.getExerciseId());
+                  UUID exId = dto.getExerciseId();
                   Exercise exercise =
                       exerciseRepo
                           .findById(exId)
@@ -144,5 +147,107 @@ public class WeightliftingService {
     workoutRepo.save(workout);
 
     return workout.getId();
+  }
+
+  @Transactional
+  public UUID createExercise(ExerciseDto dto) {
+    Exercise ex = new Exercise(UUID.randomUUID(), dto.getName(), dto.getMuscleGroup());
+    exerciseRepo.save(ex);
+    return ex.getId();
+  }
+
+  @Transactional
+  public void addSetToWorkout(UUID workoutId, WorkoutSetDto dto) {
+    Workout workout =
+        workoutRepo
+            .findById(workoutId)
+            .orElseThrow(() -> new EntityNotFoundException("Workout not found: " + workoutId));
+
+    UUID exerciseId = dto.getExerciseId();
+    Exercise exercise = exerciseRepo.getReferenceById(exerciseId);
+
+    WorkoutSetId id = new WorkoutSetId(workoutId, dto.getOrder());
+
+    WorkoutSet set = new WorkoutSet(id, exercise, dto.getWeightKg(), dto.getReps());
+
+    workout.addSet(set);
+    workoutRepo.save(workout);
+  }
+
+  @Transactional(readOnly = true)
+  public WorkoutDto getWorkoutWithSets(UUID id) {
+    Workout workout =
+        workoutRepo
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("Workout not found: " + id));
+
+    List<WorkoutSetDto> setDtos =
+        workout.getSets().stream()
+            .map(
+                set -> {
+                  WorkoutSetDto dto = new WorkoutSetDto();
+                  dto.setExerciseId(set.getExercise().getId());
+                  dto.setWeightKg(set.getWeightKg());
+                  dto.setReps(set.getReps());
+                  dto.setOrder(set.getId().getOrder());
+                  return dto;
+                })
+            .toList();
+
+    WorkoutDto response = new WorkoutDto();
+    response.setPerformedOn(workout.getPerformedOn());
+    response.setSets(setDtos);
+
+    return response;
+  }
+
+  @Transactional
+  public void deleteWorkout(UUID id) {
+    if (!workoutRepo.existsById(id)) {
+      throw new EntityNotFoundException("Workout not found: " + id);
+    }
+    workoutRepo.deleteById(id);
+  }
+
+  public void deleteExercise(UUID id) {
+    exerciseRepo.deleteById(id);
+  }
+
+  public List<ExerciseDto> getAllExercises() {
+    return exerciseRepo.findAll().stream()
+        .map(
+            e -> {
+              ExerciseDto dto = new ExerciseDto();
+              dto.setId(e.getId());
+              dto.setName(e.getName());
+              dto.setMuscleGroup(e.getMuscleGroup());
+              return dto;
+            })
+        .toList();
+  }
+
+  public List<WorkoutDto> getAllWorkouts() {
+    return workoutRepo.findAllWithSets().stream().map(this::mapToDto).toList();
+  }
+
+  private WorkoutDto mapToDto(Workout workout) {
+    WorkoutDto dto = new WorkoutDto();
+    dto.setPerformedOn(workout.getPerformedOn());
+
+    List<WorkoutSetDto> setDtos =
+        workout.getSets().stream()
+            .map(
+                set -> {
+                  WorkoutSetDto s = new WorkoutSetDto();
+                  s.setOrder(set.getId().getOrder());
+                  s.setWeightKg(set.getWeightKg());
+                  s.setReps(set.getReps());
+                  s.setExerciseId(set.getExercise().getId());
+                  return s;
+                })
+            .toList();
+
+    dto.setSets(setDtos);
+    return dto;
   }
 }

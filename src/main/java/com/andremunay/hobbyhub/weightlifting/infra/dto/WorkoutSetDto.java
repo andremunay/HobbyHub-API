@@ -1,17 +1,25 @@
 package com.andremunay.hobbyhub.weightlifting.infra.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Represents one set in a WorkoutCreateRequest. */
+/** Represents one set in a WorkoutDto. */
 @Getter
 @Setter
-public class WorkoutSetCreateRequest {
-  @NotNull private String exerciseId; // UUID of existing Exercise, as string
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class WorkoutSetDto {
+  @Null private UUID workoutId;
+
+  @NotNull private UUID exerciseId;
 
   @NotNull
   @DecimalMin("0.1")

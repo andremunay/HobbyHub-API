@@ -13,7 +13,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class FlashcardGradeRequest {
+public class FlashcardGradeDto {
 
   @NotNull
   @Min(0)

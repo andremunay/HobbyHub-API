@@ -140,4 +140,29 @@ class FlashcardServiceTest {
     assertThat(dto.getBack()).isEqualTo("b");
     assertThat(dto.getNextReviewOn()).isEqualTo(today.plusDays(6));
   }
+
+  @Test
+  void deleteShouldDeleteWhenExists() {
+    // Arrange
+    UUID id = UUID.randomUUID();
+    when(repository.existsById(id)).thenReturn(true);
+
+    // Act
+    flashcardService.delete(id);
+
+    // Assert
+    verify(repository).deleteById(id);
+  }
+
+  @Test
+  void deleteShouldThrowWhenNotFound() {
+    // Arrange
+    UUID id = UUID.randomUUID();
+    when(repository.existsById(id)).thenReturn(false);
+
+    // Act & Assert
+    assertThatThrownBy(() -> flashcardService.delete(id))
+        .isInstanceOf(EntityNotFoundException.class)
+        .hasMessageContaining("Flashcard not found: " + id);
+  }
 }

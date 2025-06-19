@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class FlashcardCreateRequest {
+public class FlashcardDto {
   @NotBlank private String front;
 
   @NotBlank private String back;

@@ -24,6 +24,7 @@ public class TestcontainersConfiguration {
   @Value("${POSTGRES_PASSWORD}")
   private String password;
 
+  @SuppressWarnings("resource")
   @Bean
   @ServiceConnection
   public PostgreSQLContainer<?> postgresContainer() {

@@ -28,4 +28,11 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
       ORDER BY w.performedOn DESC
       """)
   List<WorkoutSet> findSetsByExerciseId(@Param("exerciseId") UUID exerciseId, Pageable pageable);
+
+  @Query(
+      """
+    SELECT w FROM Workout w
+    LEFT JOIN FETCH w.sets
+    """)
+  List<Workout> findAllWithSets();
 }
