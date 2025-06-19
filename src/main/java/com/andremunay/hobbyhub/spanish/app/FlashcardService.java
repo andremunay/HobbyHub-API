@@ -53,4 +53,11 @@ public class FlashcardService {
     // map to DTO and return
     return toDto(updated);
   }
+
+  public void delete(UUID id) {
+    if (!repository.existsById(id)) {
+      throw new EntityNotFoundException("Flashcard not found: " + id);
+    }
+    repository.deleteById(id);
+  }
 }

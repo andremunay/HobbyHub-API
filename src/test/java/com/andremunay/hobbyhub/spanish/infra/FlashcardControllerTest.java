@@ -1,5 +1,6 @@
 package com.andremunay.hobbyhub.spanish.infra;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -92,5 +93,19 @@ class FlashcardControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(id.toString()))
         .andExpect(jsonPath("$.nextReviewOn").value(nextReview.toString()));
+  }
+
+  @Test
+  void deleteCard() throws Exception {
+    // arrange
+    UUID id = UUID.randomUUID();
+    // stub out the void service call (not strictly required, but explicit):
+    BDDMockito.willDoNothing().given(flashcardService).delete(id);
+
+    // act & assert
+    mvc.perform(delete("/flashcards/{id}", id)).andExpect(status().isNoContent());
+
+    // verify that the service was invoked
+    Mockito.verify(flashcardService).delete(id);
   }
 }

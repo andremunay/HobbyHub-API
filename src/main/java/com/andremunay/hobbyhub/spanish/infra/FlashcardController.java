@@ -1,8 +1,8 @@
 package com.andremunay.hobbyhub.spanish.infra;
 
 import com.andremunay.hobbyhub.spanish.app.FlashcardService;
-import com.andremunay.hobbyhub.spanish.infra.dto.FlashcardCreateRequest;
-import com.andremunay.hobbyhub.spanish.infra.dto.FlashcardGradeRequest;
+import com.andremunay.hobbyhub.spanish.infra.dto.FlashcardDto;
+import com.andremunay.hobbyhub.spanish.infra.dto.FlashcardGradeDto;
 import com.andremunay.hobbyhub.spanish.infra.dto.FlashcardReviewDto;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -10,7 +10,14 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/flashcards")
@@ -19,7 +26,7 @@ public class FlashcardController {
   private final FlashcardService flashcardService;
 
   @PostMapping
-  public ResponseEntity<Void> create(@Valid @RequestBody FlashcardCreateRequest req) {
+  public ResponseEntity<Void> create(@Valid @RequestBody FlashcardDto req) {
     flashcardService.create(req.getFront(), req.getBack());
     return ResponseEntity.ok().build();
   }
@@ -41,8 +48,14 @@ public class FlashcardController {
 
   @PostMapping("/{id}/review")
   public ResponseEntity<FlashcardReviewDto> review(
-      @PathVariable UUID id, @Valid @RequestBody FlashcardGradeRequest req) {
+      @PathVariable UUID id, @Valid @RequestBody FlashcardGradeDto req) {
     FlashcardReviewDto updated = flashcardService.review(id, req.getGrade());
     return ResponseEntity.ok(updated);
+  }
+
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> deleteCard(@PathVariable UUID id) {
+    flashcardService.delete(id);
+    return ResponseEntity.noContent().build();
   }
 }
