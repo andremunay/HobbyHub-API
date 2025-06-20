@@ -171,4 +171,14 @@ class WeightliftingControllerTest {
 
     Mockito.verify(weightliftingService).deleteExercise(id);
   }
+
+  @Test
+  void getWorkout_invalidUuid_returnsBadRequest() throws Exception {
+    mvc.perform(get("/weightlifting/workouts/invalid-uuid")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteWorkout_invalidUuid_returnsBadRequest() throws Exception {
+    mvc.perform(delete("/weightlifting/workouts/invalid-uuid")).andExpect(status().isBadRequest());
+  }
 }

@@ -2,6 +2,7 @@ package com.andremunay.hobbyhub.weightlifting.infra;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -320,5 +322,106 @@ class WeightliftingIntegrationTest {
     private UUID workoutId;
     private LocalDate date;
     private double oneRepMax;
+  }
+
+  @Test
+  void getAllExercises_returnsCreatedExercises() throws Exception {
+    // build two new ExerciseDto instances via setters
+    ExerciseDto e1 = new ExerciseDto();
+    e1.setName("Press");
+    e1.setMuscleGroup("Push");
+    ExerciseDto e2 = new ExerciseDto();
+    e2.setName("Pull");
+    e2.setMuscleGroup("Back");
+
+    // POST both
+    mockMvc
+        .perform(
+            post("/weightlifting/exercises")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(e1)))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(
+            post("/weightlifting/exercises")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(e2)))
+        .andExpect(status().isOk());
+
+    // GET list
+    MvcResult mvc =
+        mockMvc
+            .perform(get("/weightlifting/exercises").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    // deserialize and assert both names appear
+    List<ExerciseDto> all =
+        objectMapper.readValue(
+            mvc.getResponse().getContentAsString(), new TypeReference<List<ExerciseDto>>() {});
+
+    List<String> names = all.stream().map(ExerciseDto::getName).collect(Collectors.toList());
+    assertTrue(names.containsAll(List.of("Press", "Pull")));
+  }
+
+  @Test
+  void getAllWorkouts_returnsCreatedWorkout() throws Exception {
+    // 1) create the exercise
+    ExerciseDto exDto = new ExerciseDto();
+    exDto.setName("Squat");
+    exDto.setMuscleGroup("Legs");
+    MvcResult exMvc =
+        mockMvc
+            .perform(
+                post("/weightlifting/exercises")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(exDto)))
+            .andExpect(status().isOk())
+            .andReturn();
+    UUID exId = UUID.fromString(exMvc.getResponse().getContentAsString().replace("\"", ""));
+
+    // 2) build a WorkoutDto with one set
+    WorkoutDto wDto = new WorkoutDto();
+    wDto.setPerformedOn(LocalDate.now());
+    WorkoutSetDto setDto = new WorkoutSetDto();
+    setDto.setExerciseId(exId);
+    setDto.setWeightKg(BigDecimal.valueOf(80));
+    setDto.setReps(5);
+    setDto.setOrder(1);
+    wDto.setSets(List.of(setDto));
+
+    // POST the workout
+    mockMvc
+        .perform(
+            post("/weightlifting/workouts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(wDto)))
+        .andExpect(status().isOk());
+
+    // GET all workouts
+    MvcResult mvc =
+        mockMvc
+            .perform(get("/weightlifting/workouts").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    List<WorkoutDto> all =
+        objectMapper.readValue(
+            mvc.getResponse().getContentAsString(), new TypeReference<List<WorkoutDto>>() {});
+
+    // assert at least one workout performed today
+    assertTrue(
+        all.stream().map(WorkoutDto::getPerformedOn).anyMatch(d -> d.equals(LocalDate.now())));
+  }
+
+  @Test
+  void getWorkout_invalidUuid_returnsBadRequest() throws Exception {
+    mockMvc.perform(get("/weightlifting/workouts/not-a-uuid")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteInvalidIds_returnBadRequest() throws Exception {
+    mockMvc.perform(delete("/weightlifting/workouts/abc")).andExpect(status().isBadRequest());
+    mockMvc.perform(delete("/weightlifting/exercises/xyz")).andExpect(status().isBadRequest());
   }
 }
