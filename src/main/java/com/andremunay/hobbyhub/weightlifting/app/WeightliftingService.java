@@ -1,5 +1,9 @@
 package com.andremunay.hobbyhub.weightlifting.app;
 
+import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.maxBy;
+
 import com.andremunay.hobbyhub.weightlifting.domain.Exercise;
 import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
@@ -45,16 +49,20 @@ public class WeightliftingService {
 
     List<WorkoutSet> topSets =
         sets.stream()
-            .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
+            .sorted(comparing(ws -> ws.getWorkout().getPerformedOn()))
             .collect(
-                Collectors.groupingBy(
-                    ws -> ws.getWorkout().getId(),
-                    Collectors.maxBy(Comparator.comparing(WorkoutSet::getWeightKg))))
+                groupingBy(
+                    ws -> ws.getWorkout().getId(), maxBy(comparing(WorkoutSet::getWeightKg))))
             .values()
             .stream()
             .map(Optional::get)
             .limit(lastN)
+            .sorted(comparing(ws -> ws.getWorkout().getPerformedOn()))
             .toList();
+
+    if (topSets.size() < 2) {
+      return 0.0;
+    }
 
     SimpleRegression regression = new SimpleRegression();
     for (int i = 0; i < topSets.size(); i++) {

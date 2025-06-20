@@ -3,6 +3,8 @@ package com.andremunay.hobbyhub.weightlifting.app;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,5 +28,14 @@ class EpleyOneRepMaxStrategyTest {
     assertThatThrownBy(() -> strategy.calculate(100, 0))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Reps must be");
+  }
+
+  @Test
+  void throwsOnNegativeReps() {
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> strategy.calculate(100.0, -5));
+    assertTrue(
+        ex.getMessage().contains("Reps must be >= 1"),
+        "Expected exception message to mention valid rep range");
   }
 }
