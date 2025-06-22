@@ -91,13 +91,6 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}:${{ github.head_ref || github.ref_name }}
-
-      - name: Push :latest tag (main only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: |
             ${{ env.REGISTRY }}:latest
 
   deploy-prod:
