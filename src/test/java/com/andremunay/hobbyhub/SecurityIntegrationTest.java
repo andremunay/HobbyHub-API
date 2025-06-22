@@ -23,7 +23,13 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** Simple test to verify that unauthenticated requests are redirected to GitHub OAuth2 login. */
+/**
+ * Integration tests for verifying security behavior under the "fly" profile.
+ *
+ * <p>These tests validate: - Authentication requirements for protected routes - Redirect behavior
+ * for unauthenticated users - Access to public endpoints like Actuator - Login and logout flow with
+ * OAuth2
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration.class)
 @Testcontainers
@@ -34,8 +40,8 @@ class SecurityIntegrationTest {
   @Autowired private MockMvc mockMvc;
 
   /**
-   * Hitting any protected URL without authentication should send a 302 redirect to
-   * /oauth2/authorization/github
+   * Verifies that unauthenticated users are redirected to GitHub OAuth login when accessing
+   * protected endpoints.
    */
   @Test
   void whenNotAuthenticated_thenRedirectToGithubLogin() throws Exception {
@@ -45,18 +51,13 @@ class SecurityIntegrationTest {
         .andExpect(redirectedUrlPattern("**/oauth2/authorization/github"));
   }
 
-  /**
-   * If we hit an allowed endpoint (like /actuator/health), we should get 200 OK without redirect.
-   */
+  /** Confirms that the /actuator/health endpoint is publicly accessible. */
   @Test
   void whenHitActuatorHealth_thenOk() throws Exception {
     mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
   }
 
-  /**
-   * If we simulate a logged‐in user, we should be able to hit “/” without redirect. We
-   * use @WithMockUser to bypass real OAuth.
-   */
+  /** Ensures authenticated users can access the welcome page and receive the expected content. */
   @Test
   void whenAuthenticated_thenAccessWelcomePage() throws Exception {
     Map<String, Object> attributes = Map.of("name", "Test User");
@@ -75,7 +76,7 @@ class SecurityIntegrationTest {
                         "<h1 class=\"text-3xl font-bold mb-6\">Welcome to HobbyHub API</h1>")));
   }
 
-  /** Test logout flows to “/” after signing out. */
+  /** Verifies that calling /logout results in a redirect to the home page. */
   @Test
   @WithMockUser(username = "testuser")
   void whenLogout_thenRedirectToHome() throws Exception {

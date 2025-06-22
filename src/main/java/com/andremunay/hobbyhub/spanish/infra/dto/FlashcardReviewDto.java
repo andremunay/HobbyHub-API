@@ -8,6 +8,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Data transfer object representing a flashcard scheduled for review.
+ *
+ * <p>Includes metadata relevant to the review queue, excluding algorithm-specific internals.
+ */
 @Getter
 @Setter
 @NoArgsConstructor

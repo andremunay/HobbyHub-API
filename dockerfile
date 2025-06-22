@@ -18,7 +18,6 @@ ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-fly}
 ENV JAVA_OPTS=""
 
 # Fly sets this in fly.toml: `JAVA_OPTS="-Xmx300m -Xms64m"`
-# In local dev, you can omit it or override it to empty
 
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

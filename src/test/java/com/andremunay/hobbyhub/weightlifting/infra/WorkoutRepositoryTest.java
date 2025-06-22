@@ -21,6 +21,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * Integration tests for {@link WorkoutRepository} using a real PostgreSQL container.
+ *
+ * <p>Validates: - Custom query for fetching sets by exercise ID in descending date order -
+ * Fetch-join behavior for loading workouts with sets in one query
+ */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(com.andremunay.hobbyhub.TestcontainersConfiguration.class)
@@ -35,10 +41,13 @@ class WorkoutRepositoryTest {
     workoutRepository.deleteAll();
   }
 
+  /**
+   * Ensures that {@code findSetsByExerciseId} returns workout sets in descending workout date
+   * order.
+   */
   @Test
   @DisplayName("findSetsByExerciseId returns WorkoutSets ordered by workout date descending")
   void findSetsByExerciseId() {
-    // given: an exercise and two workouts on different dates
     Exercise exercise = new Exercise(UUID.randomUUID(), "Squat", "Legs");
     entityManager.persist(exercise);
 
@@ -54,20 +63,21 @@ class WorkoutRepositoryTest {
     newer.addSet(set2);
     workoutRepository.save(newer);
 
-    // when: fetching last 2 sets for the exercise
     List<WorkoutSet> results =
         workoutRepository.findSetsByExerciseId(exercise.getId(), PageRequest.of(0, 2));
 
-    // then: ordered by workout.performedOn descending
     assertThat(results).hasSize(2);
     assertThat(results.get(0).getWorkout().getId()).isEqualTo(newer.getId());
     assertThat(results.get(1).getWorkout().getId()).isEqualTo(older.getId());
   }
 
+  /**
+   * Verifies that {@code findAllWithSets} performs an eager fetch of workout sets. This avoids N+1
+   * query issues by retrieving sets along with workouts.
+   */
   @Test
   @DisplayName("findAllWithSets fetches workouts with their sets eagerly")
   void findAllWithSets() {
-    // given: a workout with one set
     Exercise exercise = new Exercise(UUID.randomUUID(), "Bench Press", "Chest");
     entityManager.persist(exercise);
 
@@ -77,10 +87,8 @@ class WorkoutRepositoryTest {
     workout.addSet(set);
     workoutRepository.save(workout);
 
-    // when: loading all workouts with sets
     List<Workout> all = workoutRepository.findAllWithSets();
 
-    // then: each workout contains its sets
     assertThat(all).hasSize(1);
     assertThat(all.get(0).getSets())
         .hasSize(1)

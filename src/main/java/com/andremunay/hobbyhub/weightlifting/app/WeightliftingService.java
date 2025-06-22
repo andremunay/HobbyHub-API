@@ -30,6 +30,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Service layer for managing workouts, exercises, and calculating performance metrics.
+ *
+ * <p>Handles persistence operations and applies training heuristics such as overload trend and
+ * one-rep max.
+ */
 @Service
 @RequiredArgsConstructor
 public class WeightliftingService {
@@ -38,15 +44,31 @@ public class WeightliftingService {
   private final ExerciseRepository exerciseRepo;
   private final OneRepMaxStrategy ormStrategy;
 
+  /**
+   * Calculates the estimated one-rep max using the configured formula strategy.
+   *
+   * @param set a completed workout set
+   * @return estimated one-rep max for the given set
+   */
   public double calculateOneRepMax(WorkoutSet set) {
     return ormStrategy.calculate(set.getWeightKg().doubleValue(), set.getReps());
   }
 
+  /**
+   * Estimates the slope of progressive overload over the most recent N workouts.
+   *
+   * <p>Measures performance trend based on top sets per workout using linear regression.
+   *
+   * @param exerciseId the exercise to analyze
+   * @param lastN number of most recent workouts to include
+   * @return positive/negative slope of weight progression (0.0 if insufficient data)
+   */
   public double computeOverloadTrend(UUID exerciseId, int lastN) {
     Pageable page = PageRequest.of(0, lastN);
 
     List<WorkoutSet> sets = workoutRepo.findSetsByExerciseId(exerciseId, page);
 
+    // Extract highest-weight set per workout
     List<WorkoutSet> topSets =
         sets.stream()
             .sorted(comparing(ws -> ws.getWorkout().getPerformedOn()))
@@ -64,6 +86,7 @@ public class WeightliftingService {
       return 0.0;
     }
 
+    // Perform simple linear regression on weights over time
     SimpleRegression regression = new SimpleRegression();
     for (int i = 0; i < topSets.size(); i++) {
       regression.addData(i, topSets.get(i).getWeightKg().doubleValue());
@@ -72,16 +95,20 @@ public class WeightliftingService {
     return regression.getSlope();
   }
 
-  /** Given an exerciseId and lastN, compute a list of OneRmPointDto sorted by date ascending. */
+  /**
+   * Calculates estimated 1RM for top sets across the most recent N workouts.
+   *
+   * @param exerciseId exercise identifier
+   * @param lastN maximum number of recent sessions to consider
+   * @return list of one-rep max data points for trend plotting
+   */
   @Transactional(readOnly = true)
   public List<OneRmPointDto> getOneRepMaxStats(UUID exerciseId, int lastN) {
-    // 1) wrap lastN into a Pageable
     var page = PageRequest.of(0, lastN);
 
-    // 2) fetch WorkoutSet rows (newest first)
     List<WorkoutSet> allSets = workoutRepo.findSetsByExerciseId(exerciseId, page);
 
-    // 3) group by Workout ID → pick the set with max weight per workout
+    // Retain the top-weight set per workout
     Map<UUID, WorkoutSet> topSetPerWorkout =
         allSets.stream()
             .collect(
@@ -91,13 +118,11 @@ public class WeightliftingService {
                         Collectors.maxBy(Comparator.comparing(WorkoutSet::getWeightKg)),
                         Optional::get)));
 
-    // 4) Extract and sort by performedOn ascending
     List<WorkoutSet> sortedTopSets =
         topSetPerWorkout.values().stream()
             .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
             .toList();
 
-    // 5) Map each to OneRmPointDto DTO
     return sortedTopSets.stream()
         .map(
             ws -> {
@@ -111,22 +136,22 @@ public class WeightliftingService {
   }
 
   /**
-   * Creates a new Workout (and its nested sets) from the given request. Returns the generated
-   * Workout UUID.
+   * Creates a new workout along with its associated sets and exercises.
+   *
+   * @param req the workout data submitted by the client
+   * @return the ID of the newly created workout
+   * @throws NoSuchElementException if any exercise in the set is missing
    */
   @Transactional
   public UUID createWorkout(WorkoutDto req) {
-    // 1) Map top‐level fields
     Workout workout = new Workout();
     workout.setId(UUID.randomUUID());
     workout.setPerformedOn(req.getPerformedOn());
 
-    // 2) For each nested set DTO:
     List<WorkoutSet> sets =
         req.getSets().stream()
             .map(
                 dto -> {
-                  // 2a) Lookup Exercise entity (throws if not found)
                   UUID exId = dto.getExerciseId();
                   Exercise exercise =
                       exerciseRepo
@@ -134,29 +159,30 @@ public class WeightliftingService {
                           .orElseThrow(
                               () -> new NoSuchElementException("Exercise not found: " + exId));
 
-                  // 2b) Build WorkoutSetId with workoutId + order
                   WorkoutSetId setId = new WorkoutSetId(workout.getId(), dto.getOrder());
 
-                  // 2c) Construct WorkoutSet entity
                   WorkoutSet set =
                       new WorkoutSet(setId, exercise, dto.getWeightKg(), dto.getReps());
 
-                  // 2d) Set the bidirectional link to parent Workout
                   set.setWorkout(workout);
 
                   return set;
                 })
             .collect(Collectors.toList());
 
-    // 3) Attach sets to workout (cascade = ALL)
     sets.forEach(workout::addSet);
 
-    // 4) Save Workout (persist sets as well)
     workoutRepo.save(workout);
 
     return workout.getId();
   }
 
+  /**
+   * Creates a new exercise.
+   *
+   * @param dto the exercise details
+   * @return the generated UUID for the new exercise
+   */
   @Transactional
   public UUID createExercise(ExerciseDto dto) {
     Exercise ex = new Exercise(UUID.randomUUID(), dto.getName(), dto.getMuscleGroup());
@@ -164,6 +190,13 @@ public class WeightliftingService {
     return ex.getId();
   }
 
+  /**
+   * Adds a new set to an existing workout.
+   *
+   * @param workoutId the target workout's ID
+   * @param dto the set to add
+   * @throws EntityNotFoundException if the workout is not found
+   */
   @Transactional
   public void addSetToWorkout(UUID workoutId, WorkoutSetDto dto) {
     Workout workout =
@@ -182,6 +215,13 @@ public class WeightliftingService {
     workoutRepo.save(workout);
   }
 
+  /**
+   * Retrieves a workout and all its sets by ID.
+   *
+   * @param id the workout ID
+   * @return the workout DTO with sets included
+   * @throws EntityNotFoundException if not found
+   */
   @Transactional(readOnly = true)
   public WorkoutDto getWorkoutWithSets(UUID id) {
     Workout workout =
@@ -209,6 +249,12 @@ public class WeightliftingService {
     return response;
   }
 
+  /**
+   * Deletes a workout by its ID.
+   *
+   * @param id the workout ID
+   * @throws EntityNotFoundException if not found
+   */
   @Transactional
   public void deleteWorkout(UUID id) {
     if (!workoutRepo.existsById(id)) {
@@ -217,10 +263,20 @@ public class WeightliftingService {
     workoutRepo.deleteById(id);
   }
 
+  /**
+   * Deletes an exercise by ID.
+   *
+   * @param id the exercise ID
+   */
   public void deleteExercise(UUID id) {
     exerciseRepo.deleteById(id);
   }
 
+  /**
+   * Retrieves all exercises in the system.
+   *
+   * @return list of exercise DTOs
+   */
   public List<ExerciseDto> getAllExercises() {
     return exerciseRepo.findAll().stream()
         .map(
@@ -234,10 +290,16 @@ public class WeightliftingService {
         .toList();
   }
 
+  /**
+   * Retrieves all workouts along with their sets.
+   *
+   * @return list of full workout DTOs
+   */
   public List<WorkoutDto> getAllWorkouts() {
     return workoutRepo.findAllWithSets().stream().map(this::mapToDto).toList();
   }
 
+  // Maps a Workout entity to its DTO representation with embedded sets
   private WorkoutDto mapToDto(Workout workout) {
     WorkoutDto dto = new WorkoutDto();
     dto.setPerformedOn(workout.getPerformedOn());

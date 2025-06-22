@@ -1,4 +1,5 @@
 # flyctl launch added from .gitignore
+
 # Java / Maven
 target
 **\*.class
@@ -25,8 +26,6 @@ target
 **\.springBeans
 **\.sts4-cache
 fly-postgres-credentials
-
-# Spring Boot secrets/config
 
 # Docker
 **\.env

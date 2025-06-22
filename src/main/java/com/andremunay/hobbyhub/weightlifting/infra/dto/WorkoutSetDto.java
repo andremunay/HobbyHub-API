@@ -11,7 +11,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Represents one set in a WorkoutDto. */
+/**
+ * Data transfer object for submitting or retrieving an individual set in a workout.
+ *
+ * <p>Each set includes the exercise performed, weight, reps, and order within the workout. -
+ * `workoutId` must be null on creation; it's inferred from context. - `order` must be unique within
+ * a workout to distinguish sets.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,5 +37,5 @@ public class WorkoutSetDto {
 
   @NotNull
   @Min(0)
-  private Integer order; // the “position” of this set within the workout
+  private Integer order;
 }

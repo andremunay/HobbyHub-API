@@ -11,6 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+/**
+ * Unit tests for {@link Sm2ReviewScheduler}, verifying SM-2 algorithm behavior.
+ *
+ * <p>Covers scheduling logic for first and subsequent reviews, easiness factor updates, repetition
+ * resets, and lower-bound enforcement.
+ */
 class Sm2ReviewSchedulerTest {
 
   private Sm2ReviewScheduler scheduler;
@@ -22,6 +28,7 @@ class Sm2ReviewSchedulerTest {
     today = LocalDate.of(2025, 5, 20);
   }
 
+  // Helper method to build a flashcard with controlled review state
   private Flashcard createCard(int repetition, double ef, int interval) {
     Flashcard card = new Flashcard(UUID.randomUUID(), "hola", "hello");
     card.setRepetition(repetition);
@@ -30,6 +37,7 @@ class Sm2ReviewSchedulerTest {
     return card;
   }
 
+  /** Verifies that the first review schedules correctly: repetition = 1, interval = 1. */
   @Test
   void shouldScheduleFirstReviewCorrectly() {
     Flashcard card = createCard(0, 2.5, 0);
@@ -40,6 +48,7 @@ class Sm2ReviewSchedulerTest {
     assertEquals(today.plusDays(1), reviewed.getNextReviewOn());
   }
 
+  /** Verifies that the second review produces a hardcoded interval of 6 days. */
   @Test
   void shouldScheduleSecondReviewCorrectly() {
     Flashcard card = createCard(1, 2.5, 1);
@@ -50,12 +59,9 @@ class Sm2ReviewSchedulerTest {
     assertEquals(today.plusDays(6), reviewed.getNextReviewOn());
   }
 
+  /** Parameterized test: verifies interval scaling via easiness factor after third+ review. */
   @ParameterizedTest
-  @CsvSource({
-    "2.5, 5, 15", // EF = 2.5, grade = 5 → expected interval = 6 * 2.5 = 15
-    "2.0, 3, 12", // EF = 2.0, grade = 3
-    "2.0, 4, 12" // EF = 2.0, grade = 4
-  })
+  @CsvSource({"2.5, 5, 15", "2.0, 3, 12", "2.0, 4, 12"})
   void shouldUseEasinessFactorWhenReviewingWithGoodGrades(
       double ef, int grade, int expectedInterval) {
     Flashcard card = createCard(2, ef, 6);
@@ -66,6 +72,7 @@ class Sm2ReviewSchedulerTest {
     assertEquals(today.plusDays(expectedInterval), reviewed.getNextReviewOn());
   }
 
+  /** Verifies that a low-quality review resets repetition and interval. */
   @Test
   void shouldResetIntervalAndRepetitionWhenQualityIsLow() {
     Flashcard card = createCard(3, 2.5, 10);
@@ -76,6 +83,7 @@ class Sm2ReviewSchedulerTest {
     assertEquals(today.plusDays(1), reviewed.getNextReviewOn());
   }
 
+  /** Verifies that easiness factor is clamped to a minimum of 1.3 after poor recall. */
   @Test
   void shouldClampEaseFactorMinimumAt1point3() {
     Flashcard card = createCard(2, 1.2, 6);
@@ -84,6 +92,7 @@ class Sm2ReviewSchedulerTest {
     assertTrue(reviewed.getEasinessFactor() >= 1.3);
   }
 
+  /** Verifies that a perfect review increases the easiness factor. */
   @Test
   void shouldUpdateEaseFactorUpwardsWhenQualityIsHigh() {
     Flashcard card = createCard(1, 2.0, 1);

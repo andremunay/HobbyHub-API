@@ -1,39 +1,57 @@
 package com.andremunay.hobbyhub.shared.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.lang.NonNull;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-@Profile("fly")
+/**
+ * Shared security configuration with profile-specific filter chains.
+ *
+ * <p>Local profile: disables auth and CSRF, permits all requests. Fly profile: enforces OAuth2
+ * login, secures endpoints, disables CSRF.
+ */
 @Configuration
-@RequiredArgsConstructor
 public class SecurityConfig {
 
+  private static final String[] PUBLIC_MATCHERS = {
+    "/actuator/**",
+    "/login/**",
+    "/oauth2/**",
+    "/swagger-ui/**",
+    "/v3/api-docs/**",
+    "/swagger-ui.html",
+    "/actuator/prometheus"
+  };
+
+  /** Local (development) security: all requests permitted, CSRF disabled, basic CSP. */
   @Bean
-  SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  @Profile("local")
+  public SecurityFilterChain localFilterChain(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers(
-                        "/actuator/**",
-                        "/login/**",
-                        "/oauth2/**",
-                        "/swagger-ui/**",
-                        "/v3/api-docs/**",
-                        "/swagger-ui.html",
-                        "/actuator/prometheus")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
+            auth -> auth.requestMatchers(PUBLIC_MATCHERS).permitAll().anyRequest().permitAll())
+        .headers(
+            headers ->
+                headers.contentSecurityPolicy(
+                    csp ->
+                        csp.policyDirectives(
+                            "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com")))
+        .csrf(csrf -> csrf.disable());
+
+    return http.build();
+  }
+
+  /** Fly (production) security: OAuth2 login, authenticated access, CSRF disabled, CSP. */
+  @Bean
+  @Profile("fly")
+  public SecurityFilterChain flyFilterChain(HttpSecurity http) throws Exception {
+    http.authorizeHttpRequests(
+            auth -> auth.requestMatchers(PUBLIC_MATCHERS).permitAll().anyRequest().authenticated())
         .exceptionHandling(
-            exception ->
-                exception.authenticationEntryPoint(
+            exc ->
+                exc.authenticationEntryPoint(
                     new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/github")))
         .oauth2Login(oauth -> oauth.defaultSuccessUrl("/welcome", true))
         .logout(logout -> logout.logoutSuccessUrl("/").permitAll())
@@ -46,15 +64,5 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable());
 
     return http.build();
-  }
-
-  @Bean
-  public WebMvcConfigurer corsConfigurer() {
-    return new WebMvcConfigurer() {
-      @Override
-      public void addCorsMappings(@NonNull CorsRegistry registry) {
-        registry.addMapping("/**").allowedOrigins("*").allowedMethods("*");
-      }
-    };
   }
 }

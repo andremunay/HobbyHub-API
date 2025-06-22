@@ -15,6 +15,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * JPA entity representing a workout session containing multiple exercise sets.
+ *
+ * <p>Workouts are uniquely identified and timestamped, and hold associated sets of lifts.
+ */
 @Entity
 @Table(name = "workouts")
 @Getter
@@ -33,11 +38,22 @@ public class Workout {
   @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<WorkoutSet> sets = new ArrayList<>();
 
+  /**
+   * Convenience constructor to initialize a workout with its date.
+   *
+   * @param id unique identifier
+   * @param performedOn date the workout was completed
+   */
   public Workout(UUID id, LocalDate performedOn) {
     this.id = id;
     this.performedOn = performedOn;
   }
 
+  /**
+   * Adds a set to the workout and ensures bidirectional linkage.
+   *
+   * @param set the set to associate with this workout
+   */
   public void addSet(WorkoutSet set) {
     sets.add(set);
     set.setWorkout(this);

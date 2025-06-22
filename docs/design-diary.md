@@ -102,3 +102,23 @@ Over the past three days, the Weightlifting module was built from the ground up:
 * Adding a Shields.io badge and uploading the JaCoCo HTML report as an artifact ensures code-coverage visibility alongside build status.
 
 ---
+
+## [2025-06-21] GitHub OAuth, Observability, Production Deployment & API Extensions
+
+### Context
+
+Since the last entry we integrated GitHub OAuth login, added Prometheus metrics and JSON-formatted logging, prepared a production deployment (via Docker and Fly.io), and extended our REST API with new endpoints.
+
+### Lessons Learned
+
+* **GitHub OAuth App & Configuration**: Learned what an OAuth application is, how to register one on GitHub, obtain client ID/secret, and wire it into Spring Security for OAuth2 login.  
+* **SecurityConfig Class**: Understood the role of the `SecurityConfig` class in defining authentication flows, permitted paths, and OAuth2 client setup.  
+* **JSON Logging with Logback**: Discovered how to configure Logback to emit structured JSON logs to stdout for improved readability and downstream parsing (noting some challenges in customizing the exact format).  
+* **Prometheus Metrics & Micrometer**: Integrated Micrometer’s Prometheus registry, exposed `/actuator/prometheus`, and learned how Prometheus scrapes and visualizes application metrics.  
+* **Dockerfile & Containerization**: Learned how to write a Dockerfile to containerize the Spring Boot app, manage layers, and set up runtime environment variables.  
+* **Fly.io Deployment**: Explored Fly.io as a production hosting platform, learned its `fly.toml` configuration, secrets management, and deployed our container successfully.  
+* **Value of Comprehensive Tests**: Even though we now have 97 tests, they catch implementation mistakes and regressions early—demonstrating the power of import and integration tests.  
+* **HTTP vs HTTPS**: Saw firsthand the differences between local (HTTP) and production (HTTPS) environments, including redirects, certificate handling, and mixed-content considerations.  
+* **Local vs Production Config**: Appreciated the nuances of environment-specific configuration (Spring profiles, env vars, networking) when moving from local development to live deployment.  
+* **SonarCloud Static Analysis**: Integrated SonarCloud to enforce code quality and coverage standards, surfacing bugs, code smells, and coverage gaps in real time.  
+* **DTO Design Patterns**: Reinforced the importance of having distinct DTOs for creation payloads versus response payloads to maintain separation of concerns and prevent leaking internal model details.  
