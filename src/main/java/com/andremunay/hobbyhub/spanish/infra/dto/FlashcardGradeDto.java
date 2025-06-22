@@ -8,7 +8,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Request body for grading a flashcard review. */
+/**
+ * Data transfer object for submitting a user's review score on a flashcard.
+ *
+ * <p>Used in the spaced repetition algorithm to adjust scheduling based on recall quality. Grade
+ * must be an integer between 0 (complete blackout) and 5 (perfect recall).
+ */
 @Getter
 @Setter
 @NoArgsConstructor

@@ -15,6 +15,12 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * Integration tests for {@link FlashcardRepository} using a real Postgres Testcontainer.
+ *
+ * <p>Validates that custom queries work as expected with actual JPA behavior and persistence
+ * context.
+ */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(com.andremunay.hobbyhub.TestcontainersConfiguration.class)
@@ -28,6 +34,7 @@ class FlashcardRepositoryTest {
     repository.deleteAll();
   }
 
+  /** Ensures that only flashcards due on or before today are returned from the custom query. */
   @Test
   @DisplayName("findByNextReviewOnBefore returns only due cards")
   void findsDueFlashcards() {

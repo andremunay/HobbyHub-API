@@ -11,6 +11,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * JPA entity representing a type of exercise (e.g., Bench Press, Squat).
+ *
+ * <p>Each exercise is uniquely named and categorized by muscle group for analysis and UI grouping.
+ */
 @Entity
 @Table(name = "exercises")
 @Getter

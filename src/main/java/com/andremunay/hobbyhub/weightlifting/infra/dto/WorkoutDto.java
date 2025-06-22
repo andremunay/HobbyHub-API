@@ -12,7 +12,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Request body for creating a new Workout with nested sets. */
+/**
+ * Data transfer object for creating or retrieving a workout.
+ *
+ * <p>Includes the workout date and one or more associated sets. The ID must be null when creating a
+ * new workout to prevent client-side injection.
+ */
 @Getter
 @Setter
 @NoArgsConstructor

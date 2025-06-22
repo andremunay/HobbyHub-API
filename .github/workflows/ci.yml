@@ -1,5 +1,7 @@
 name: CI-CD
 
+# Trigger on any push to any branch, but ignore markdown file changes.
+# Also triggers when a PR is closed (e.g., for cleanup if needed).
 on:
   push:
     branches:
@@ -9,27 +11,27 @@ on:
   pull_request:
     types: [closed]
 
+# Common environment variable for Docker image naming
 env:
   REGISTRY: ghcr.io/andremunay/hobbyhub-api
 
 jobs:
-
+  # Skip full build pipeline on main (handled by deploy-prod), run for all other branches
   build-test:
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
 
-    # only what the tests & Sonar need
     env:
-      # Testcontainers / integration-test database
+      # Integration test DB (used by Testcontainers)
       POSTGRES_DB:     ${{ secrets.POSTGRES_DB }}
       POSTGRES_USER:   ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
-      # OAuth used by tests
+      # OAuth secrets required during test bootstrapping
       OAUTH_CLIENT_ID:     ${{ secrets.OAUTH_CLIENT_ID }}
       OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
 
-      # SonarCloud analysis
+      # SonarCloud for static analysis and coverage metrics
       SONAR_TOKEN:        ${{ secrets.SONAR_TOKEN }}
       SONAR_PROJECT_KEY:  ${{ secrets.SONAR_PROJECT_KEY }}
       SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
@@ -99,6 +101,7 @@ jobs:
             ${{ env.REGISTRY }}:latest
 
   deploy-prod:
+    # Only runs on push to main branch
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -114,7 +117,6 @@ jobs:
             deploy
             --image ${{ env.REGISTRY }}:latest
             --app hobbyhub-api
-        # only this step needs Fly & GHCR creds
         env:
           FLY_API_TOKEN:           ${{ secrets.FLY_API_TOKEN }}
           REGISTRY_AUTH_USERNAME:  ${{ secrets.GHCR_USERNAME }}

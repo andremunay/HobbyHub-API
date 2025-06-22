@@ -8,8 +8,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO returned by GET /stats/1rm/{exerciseId}, representing a single { workoutId, date, oneRepMax }
- * point.
+ * Data transfer object representing a single one-rep max (1RM) data point.
+ *
+ * <p>Used for plotting strength progress over time per workout.
  */
 @Getter
 @Setter

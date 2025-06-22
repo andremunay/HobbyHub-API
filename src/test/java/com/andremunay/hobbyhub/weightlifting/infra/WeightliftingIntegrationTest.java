@@ -14,6 +14,7 @@ import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSetId;
 import com.andremunay.hobbyhub.weightlifting.infra.dto.ExerciseDto;
+import com.andremunay.hobbyhub.weightlifting.infra.dto.WeightStatDto;
 import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutDto;
 import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutSetDto;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -23,9 +24,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +38,12 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * Full integration tests for the weightlifting module.
+ *
+ * <p>These tests use a real Spring Boot context, MockMvc for HTTP interaction, and
+ * Testcontainers-backed PostgreSQL for data persistence.
+ */
 @Import(com.andremunay.hobbyhub.TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -56,20 +60,16 @@ class WeightliftingIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    // 1) Create one Exercise in DB
     Exercise exercise = new Exercise(UUID.randomUUID(), "Bench Press", "Chest");
     exerciseRepo.save(exercise);
     this.exerciseId = exercise.getId();
 
-    // 2) Create 3 Workouts on consecutive days, each with one WorkoutSet for that Exercise
     Workout w1 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 1));
     Workout w2 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 2));
     Workout w3 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 3));
 
-    // Persist these workouts first so that they have an ID
     workoutRepo.saveAll(List.of(w1, w2, w3));
 
-    // Now add one WorkoutSet to each, with strictly increasing weight
     WorkoutSet s1 =
         new WorkoutSet(new WorkoutSetId(w1.getId(), 1), exercise, BigDecimal.valueOf(50), 5);
     s1.setWorkout(w1);
@@ -82,37 +82,35 @@ class WeightliftingIntegrationTest {
         new WorkoutSet(new WorkoutSetId(w3.getId(), 1), exercise, BigDecimal.valueOf(70), 5);
     s3.setWorkout(w3);
 
-    // Save all sets by saving the owning Workout (cascade = ALL)
     w1.addSet(s1);
     w2.addSet(s2);
     w3.addSet(s3);
 
-    // Persist changes
     workoutRepo.saveAll(List.of(w1, w2, w3));
   }
 
+  /**
+   * Verifies that the 1RM stats endpoint returns ascending dates and values computed with the Epley
+   * formula.
+   */
   @WithMockUser(
       username = "testuser",
       roles = {"USER"})
   @Test
   void getOneRepMaxStats_returnsAscendingDatesAndCorrectValues() throws Exception {
-    // Hit the endpoint: GET /weightlifting/stats/1rm/{exerciseId}?lastN=3
     String url = "/weightlifting/stats/1rm/" + exerciseId + "?lastN=3";
 
     MvcResult result = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
 
     String json = result.getResponse().getContentAsString();
-    List<WeightStat> stats = objectMapper.readValue(json, new TypeReference<>() {});
+    List<WeightStatDto> stats = objectMapper.readValue(json, new TypeReference<>() {});
 
     assertThat(stats).isNotNull().hasSize(3);
 
-    // The JSON should be sorted by date ascending: [2025-05-01, 2025-05-02, 2025-05-03]
     assertThat(stats.get(0).getDate()).isEqualTo(LocalDate.of(2025, 5, 1));
     assertThat(stats.get(1).getDate()).isEqualTo(LocalDate.of(2025, 5, 2));
     assertThat(stats.get(2).getDate()).isEqualTo(LocalDate.of(2025, 5, 3));
 
-    // Epley 1RM formula: for weight=50, reps=5 → 50 * (1 + 5/30) = 58.3333…
-    // for 60 & 5 → 60 * (1 + 5/30) = 69.9999…, for 70 & 5 → 81.6666…
     double rm1 = stats.get(0).getOneRepMax();
     double rm2 = stats.get(1).getOneRepMax();
     double rm3 = stats.get(2).getOneRepMax();
@@ -122,12 +120,12 @@ class WeightliftingIntegrationTest {
     assertThat(rm3).isCloseTo(81.6667, within(1e-3));
   }
 
+  /** Ensures a workout can be created and an additional set can be added to it. */
   @WithMockUser(
       username = "testuser",
       roles = {"USER"})
   @Test
   void createWorkout_thenAddSet_succeeds() throws Exception {
-    // Step 1: Build workout with 1 initial set
     WorkoutDto workoutRequest = new WorkoutDto();
     workoutRequest.setPerformedOn(LocalDate.of(2025, 6, 18));
 
@@ -139,7 +137,6 @@ class WeightliftingIntegrationTest {
 
     workoutRequest.setSets(List.of(initialSet));
 
-    // Serialize and post workout
     String workoutJson = objectMapper.writeValueAsString(workoutRequest);
     MvcResult result =
         mockMvc
@@ -153,7 +150,6 @@ class WeightliftingIntegrationTest {
     String raw = result.getResponse().getContentAsString().replace("\"", "");
     UUID workoutId = UUID.fromString(raw);
 
-    // Step 2: Add a second set to the workout
     WorkoutSetDto additionalSet = new WorkoutSetDto();
     additionalSet.setOrder(2);
     additionalSet.setWeightKg(BigDecimal.valueOf(55));
@@ -171,19 +167,18 @@ class WeightliftingIntegrationTest {
         .andExpect(status().isOk());
   }
 
+  /** Tests that a new exercise can be successfully created and persisted. */
   @WithMockUser(
       username = "testuser",
       roles = {"USER"})
   @Test
   void createExercise_succeeds() throws Exception {
-    // Step 1: build request
     ExerciseDto req = new ExerciseDto();
     req.setName("Squat");
     req.setMuscleGroup("Legs");
 
     String json = objectMapper.writeValueAsString(req);
 
-    // Step 2: POST /weightlifting/exercises
     MvcResult mvc =
         mockMvc
             .perform(
@@ -193,17 +188,16 @@ class WeightliftingIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-    // Step 3: parse ID and assert persistence
     UUID id = UUID.fromString(mvc.getResponse().getContentAsString().replace("\"", ""));
     assertThat(exerciseRepo.findById(id)).isPresent();
   }
 
+  /** Retrieves a workout by ID and verifies its sets are correctly returned in the DTO. */
   @WithMockUser(
       username = "testuser",
       roles = {"USER"})
   @Test
   void getWorkout_withSets_returnsCorrectDto() throws Exception {
-    // Arrange: reuse create+addSet flow to get a workoutId
     WorkoutDto workoutReq = new WorkoutDto();
     workoutReq.setPerformedOn(LocalDate.of(2025, 6, 18));
     WorkoutSetDto set = new WorkoutSetDto();
@@ -227,14 +221,12 @@ class WeightliftingIntegrationTest {
             .replace("\"", "");
     UUID workoutId = UUID.fromString(rawId);
 
-    // Act: GET the workout
     MvcResult getRes =
         mockMvc
             .perform(get("/weightlifting/workouts/" + workoutId))
             .andExpect(status().isOk())
             .andReturn();
 
-    // Assert: deserialize and verify
     WorkoutDto dto =
         objectMapper.readValue(
             getRes.getResponse().getContentAsString(), new TypeReference<WorkoutDto>() {});
@@ -247,12 +239,12 @@ class WeightliftingIntegrationTest {
     assertThat(retSet.getReps()).isEqualTo(3);
   }
 
+  /** Deletes an existing workout and verifies that it no longer exists in the database. */
   @WithMockUser(
       username = "testuser",
       roles = {"USER"})
   @Test
   void deleteWorkout_succeeds() throws Exception {
-    // Arrange: create a workout
     WorkoutDto wr = new WorkoutDto();
     wr.setPerformedOn(LocalDate.of(2025, 6, 19));
     WorkoutSetDto s = new WorkoutSetDto();
@@ -276,19 +268,17 @@ class WeightliftingIntegrationTest {
             .replace("\"", "");
     UUID wid = UUID.fromString(idRaw);
 
-    // Act: DELETE /weightlifting/workouts/{id}
     mockMvc.perform(delete("/weightlifting/workouts/" + wid)).andExpect(status().isNoContent());
 
-    // Assert: no longer present
     assertThat(workoutRepo.findById(wid)).isEmpty();
   }
 
+  /** Deletes an existing exercise and confirms its removal from the database. */
   @WithMockUser(
       username = "testuser",
       roles = {"USER"})
   @Test
   void deleteExercise_succeeds() throws Exception {
-    // Arrange: create an exercise
     ExerciseDto ex = new ExerciseDto();
     ex.setName("Deadlift");
     ex.setMuscleGroup("Back");
@@ -307,26 +297,14 @@ class WeightliftingIntegrationTest {
             .replace("\"", "");
     UUID exId = UUID.fromString(exIdRaw);
 
-    // Act: DELETE /weightlifting/exercises/{id}
     mockMvc.perform(delete("/weightlifting/exercises/" + exId)).andExpect(status().isNoContent());
 
-    // Assert: removed
     assertThat(exerciseRepo.findById(exId)).isEmpty();
   }
 
-  // Helper class to map JSON response (the field names must match WeightStatDto)
-  @Getter
-  @Setter
-  @NoArgsConstructor
-  public static class WeightStat {
-    private UUID workoutId;
-    private LocalDate date;
-    private double oneRepMax;
-  }
-
+  /** Verifies that previously created exercises can be retrieved through the API. */
   @Test
   void getAllExercises_returnsCreatedExercises() throws Exception {
-    // build two new ExerciseDto instances via setters
     ExerciseDto e1 = new ExerciseDto();
     e1.setName("Press");
     e1.setMuscleGroup("Push");
@@ -334,7 +312,6 @@ class WeightliftingIntegrationTest {
     e2.setName("Pull");
     e2.setMuscleGroup("Back");
 
-    // POST both
     mockMvc
         .perform(
             post("/weightlifting/exercises")
@@ -348,14 +325,12 @@ class WeightliftingIntegrationTest {
                 .content(objectMapper.writeValueAsString(e2)))
         .andExpect(status().isOk());
 
-    // GET list
     MvcResult mvc =
         mockMvc
             .perform(get("/weightlifting/exercises").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andReturn();
 
-    // deserialize and assert both names appear
     List<ExerciseDto> all =
         objectMapper.readValue(
             mvc.getResponse().getContentAsString(), new TypeReference<List<ExerciseDto>>() {});
@@ -364,9 +339,9 @@ class WeightliftingIntegrationTest {
     assertTrue(names.containsAll(List.of("Press", "Pull")));
   }
 
+  /** Verifies that previously created workouts are returned by the list endpoint. */
   @Test
   void getAllWorkouts_returnsCreatedWorkout() throws Exception {
-    // 1) create the exercise
     ExerciseDto exDto = new ExerciseDto();
     exDto.setName("Squat");
     exDto.setMuscleGroup("Legs");
@@ -380,7 +355,6 @@ class WeightliftingIntegrationTest {
             .andReturn();
     UUID exId = UUID.fromString(exMvc.getResponse().getContentAsString().replace("\"", ""));
 
-    // 2) build a WorkoutDto with one set
     WorkoutDto wDto = new WorkoutDto();
     wDto.setPerformedOn(LocalDate.now());
     WorkoutSetDto setDto = new WorkoutSetDto();
@@ -390,7 +364,6 @@ class WeightliftingIntegrationTest {
     setDto.setOrder(1);
     wDto.setSets(List.of(setDto));
 
-    // POST the workout
     mockMvc
         .perform(
             post("/weightlifting/workouts")
@@ -398,7 +371,6 @@ class WeightliftingIntegrationTest {
                 .content(objectMapper.writeValueAsString(wDto)))
         .andExpect(status().isOk());
 
-    // GET all workouts
     MvcResult mvc =
         mockMvc
             .perform(get("/weightlifting/workouts").accept(MediaType.APPLICATION_JSON))
@@ -409,16 +381,17 @@ class WeightliftingIntegrationTest {
         objectMapper.readValue(
             mvc.getResponse().getContentAsString(), new TypeReference<List<WorkoutDto>>() {});
 
-    // assert at least one workout performed today
     assertTrue(
         all.stream().map(WorkoutDto::getPerformedOn).anyMatch(d -> d.equals(LocalDate.now())));
   }
 
+  /** Returns 400 Bad Request when an invalid UUID is passed to /workouts/{id}. */
   @Test
   void getWorkout_invalidUuid_returnsBadRequest() throws Exception {
     mockMvc.perform(get("/weightlifting/workouts/not-a-uuid")).andExpect(status().isBadRequest());
   }
 
+  /** Ensures that invalid UUIDs passed to DELETE routes return 400 Bad Request. */
   @Test
   void deleteInvalidIds_returnBadRequest() throws Exception {
     mockMvc.perform(delete("/weightlifting/workouts/abc")).andExpect(status().isBadRequest());

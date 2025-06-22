@@ -1,33 +1,36 @@
 services:
+  # PostgreSQL 16 container for local development
   db:
     image: postgres:16
     container_name: hobbyhub-db
     restart: unless-stopped
     env_file:
-      - .env
+      - .env  # Loads POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
     ports:
-      - "5432:5432"
+      - "5432:5432" # Exposes DB to host machine
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data  # Persist data between restarts
 
+  # HobbyHub Spring Boot API service
   api:
-    build: .
+    build: .  # Uses Dockerfile in project root to build the app
     environment:
-      - SPRING_PROFILES_ACTIVE=local
-      - JAVA_OPTS=
+      - SPRING_PROFILES_ACTIVE=local  # Activates local profile (e.g., no auth)
+      - JAVA_OPTS=  # Reserved for JVM tuning if needed
     ports:
-      - "8080:8080"
+      - "8080:8080" # Maps internal port to host for local access
     env_file:
-      - .env
+      - .env  # Injects OAuth and DB config
     depends_on:
-      - db
+      - db  # Ensures DB starts before app container
 
+  # Prometheus for local metrics scraping and visualization
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro  # Custom scrape config
     ports:
-      - "9090:9090"
+      - "9090:9090" # Web UI for Prometheus
 
 volumes:
-  db_data:
+  db_data:  # Named Docker volume to persist PostgreSQL data

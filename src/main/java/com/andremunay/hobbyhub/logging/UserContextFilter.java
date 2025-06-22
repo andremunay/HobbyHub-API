@@ -14,9 +14,28 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Servlet filter that enriches logs with request-scoped context using MDC (Mapped Diagnostic
+ * Context).
+ *
+ * <p>Injects a unique request ID and (if authenticated) the GitHub username into the logging
+ * context. These MDC entries are automatically included in log statements if configured in the log
+ * pattern.
+ */
 @Component
 public class UserContextFilter extends OncePerRequestFilter {
 
+  /**
+   * Adds MDC context (request ID and GitHub user) to the logging scope for the current request.
+   *
+   * <p>Clears MDC afterward to prevent thread leakage in concurrent request handling.
+   *
+   * @param request the incoming HTTP request
+   * @param response the outgoing HTTP response
+   * @param filterChain the remaining filter chain
+   * @throws ServletException if filtering fails
+   * @throws IOException if I/O fails during processing
+   */
   @Override
   protected void doFilterInternal(
       @NonNull HttpServletRequest request,
@@ -25,10 +44,10 @@ public class UserContextFilter extends OncePerRequestFilter {
       throws ServletException, IOException {
 
     try {
-      // Set requestId
+      // Generate and store a unique request ID for traceability
       MDC.put("requestId", UUID.randomUUID().toString());
 
-      // Set user if authenticated
+      // If authenticated via OAuth2, extract the GitHub login name for log enrichment
       Authentication auth = (Authentication) request.getUserPrincipal();
       if (auth instanceof OAuth2AuthenticationToken token) {
         OAuth2User user = token.getPrincipal();
@@ -40,6 +59,7 @@ public class UserContextFilter extends OncePerRequestFilter {
 
       filterChain.doFilter(request, response);
     } finally {
+      // Clean up MDC to avoid leaking context across threads
       MDC.clear();
     }
   }

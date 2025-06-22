@@ -25,6 +25,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+/**
+ * Unit tests for {@link FlashcardService}, verifying business logic and side effects such as
+ * persistence, DTO mapping, review scheduling, and exception handling.
+ */
 @ExtendWith(MockitoExtension.class)
 class FlashcardServiceTest {
 
@@ -36,16 +40,14 @@ class FlashcardServiceTest {
 
   @Captor private ArgumentCaptor<Flashcard> flashcardCaptor;
 
+  /** Verifies that creating a new flashcard results in a saved entity with correct fields. */
   @Test
   void createShouldSaveNewFlashcard() {
-    // Arrange
     String front = "hola";
     String back = "hello";
 
-    // Act
     flashcardService.create(front, back);
 
-    // Assert
     verify(repository).save(flashcardCaptor.capture());
     Flashcard saved = flashcardCaptor.getValue();
     assertThat(saved.getId()).isNotNull();
@@ -53,19 +55,17 @@ class FlashcardServiceTest {
     assertThat(saved.getBack()).isEqualTo(back);
   }
 
+  /** Ensures that all flashcards are fetched and mapped correctly to DTOs. */
   @Test
   void getAllShouldReturnMappedDtos() {
-    // Arrange
     UUID id = UUID.randomUUID();
     LocalDate next = LocalDate.of(2025, Month.MAY, 26);
     Flashcard card = new Flashcard(id, "f", "b");
     card.setNextReviewOn(next);
     when(repository.findAll()).thenReturn(List.of(card));
 
-    // Act
     Collection<FlashcardReviewDto> dtos = flashcardService.getAll();
 
-    // Assert
     assertThat(dtos).hasSize(1);
     FlashcardReviewDto dto = dtos.iterator().next();
     assertThat(dto.getId()).isEqualTo(id);
@@ -74,19 +74,17 @@ class FlashcardServiceTest {
     assertThat(dto.getNextReviewOn()).isEqualTo(next);
   }
 
+  /** Verifies that only flashcards due on or before the provided date are returned. */
   @Test
   void getDueShouldReturnOnlyDueMappedDtos() {
-    // Arrange
     UUID id = UUID.randomUUID();
     LocalDate today = LocalDate.of(2025, Month.MAY, 26);
     Flashcard card = new Flashcard(id, "x", "y");
     card.setNextReviewOn(today.minusDays(1));
     when(repository.findByNextReviewOnLessThanEqual(today)).thenReturn(List.of(card));
 
-    // Act
     List<FlashcardReviewDto> dtos = flashcardService.getDue(today);
 
-    // Assert
     assertThat(dtos)
         .singleElement()
         .satisfies(
@@ -98,21 +96,23 @@ class FlashcardServiceTest {
             });
   }
 
+  /** Ensures that an exception is thrown if a review is attempted on a non-existent flashcard. */
   @Test
   void reviewShouldThrowWhenNotFound() {
-    // Arrange
     UUID id = UUID.randomUUID();
     when(repository.findById(id)).thenReturn(Optional.empty());
 
-    // Act & Assert
     assertThatThrownBy(() -> flashcardService.review(id, 3))
         .isInstanceOf(EntityNotFoundException.class)
         .hasMessageContaining(id.toString());
   }
 
+  /**
+   * Verifies that the scheduler is applied during review, the card is updated and saved, and a
+   * correctly mapped DTO is returned.
+   */
   @Test
   void reviewShouldApplySchedulerAndSaveAndReturnDto() {
-    // Arrange
     UUID id = UUID.randomUUID();
     LocalDate today = LocalDate.of(2025, Month.MAY, 26);
     Flashcard original = new Flashcard(id, "a", "b");
@@ -130,10 +130,8 @@ class FlashcardServiceTest {
     when(repository.findById(id)).thenReturn(Optional.of(original));
     when(scheduler.review(eq(original), eq(5), any(LocalDate.class))).thenReturn(updated);
 
-    // Act
     FlashcardReviewDto dto = flashcardService.review(id, 5);
 
-    // Assert
     verify(repository).save(updated);
     assertThat(dto.getId()).isEqualTo(id);
     assertThat(dto.getFront()).isEqualTo("a");
@@ -141,26 +139,23 @@ class FlashcardServiceTest {
     assertThat(dto.getNextReviewOn()).isEqualTo(today.plusDays(6));
   }
 
+  /** Asserts that an existing flashcard can be deleted by ID. */
   @Test
   void deleteShouldDeleteWhenExists() {
-    // Arrange
     UUID id = UUID.randomUUID();
     when(repository.existsById(id)).thenReturn(true);
 
-    // Act
     flashcardService.delete(id);
 
-    // Assert
     verify(repository).deleteById(id);
   }
 
+  /** Ensures an exception is thrown when attempting to delete a non-existent flashcard. */
   @Test
   void deleteShouldThrowWhenNotFound() {
-    // Arrange
     UUID id = UUID.randomUUID();
     when(repository.existsById(id)).thenReturn(false);
 
-    // Act & Assert
     assertThatThrownBy(() -> flashcardService.delete(id))
         .isInstanceOf(EntityNotFoundException.class)
         .hasMessageContaining("Flashcard not found: " + id);

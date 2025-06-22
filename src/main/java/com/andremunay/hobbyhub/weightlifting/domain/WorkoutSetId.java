@@ -11,6 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Composite primary key for {@link WorkoutSet}, consisting of: - the parent workout's ID - the
+ * set's order within that workout
+ *
+ * <p>This enables uniquely identifying sets within a workout session.
+ */
 @Embeddable
 @Getter
 @Setter

@@ -27,6 +27,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+/**
+ * Unit tests for {@link FlashcardController}, validating its REST behavior, including response
+ * structure, status codes, service delegation, and parameter handling.
+ */
 @ExtendWith(MockitoExtension.class)
 class FlashcardControllerTest {
 
@@ -41,45 +45,42 @@ class FlashcardControllerTest {
     mvc = MockMvcBuilders.standaloneSetup(controller).build();
   }
 
+  /** Verifies that creating a flashcard returns HTTP 200 and that getAll returns expected JSON. */
   @Test
   void createAndGetAll() throws Exception {
-    // Create request
     mvc.perform(
             post("/flashcards")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"front\":\"hola\",\"back\":\"hello\"}"))
         .andExpect(status().isOk());
 
-    // Stub service.getAll()
     var id = UUID.randomUUID();
     var nextReview = LocalDate.now();
     FlashcardReviewDto dto = new FlashcardReviewDto(id, "hola", "hello", nextReview);
     BDDMockito.given(flashcardService.getAll()).willReturn(List.of(dto));
 
-    // Execute GET /flashcards
     mvc.perform(get("/flashcards"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].front").value("hola"));
   }
 
+  /** Verifies that the controller filters flashcards due for review and returns them correctly. */
   @Test
   void getDue() throws Exception {
-    // Stub service.getDue(...)
     var id = UUID.randomUUID();
     var nextReview = LocalDate.now().minusDays(1);
     FlashcardReviewDto dto = new FlashcardReviewDto(id, "A", "B", nextReview);
     BDDMockito.given(flashcardService.getDue(Mockito.any(LocalDate.class)))
         .willReturn(List.of(dto));
 
-    // Execute GET /flashcards/review?due=true
     mvc.perform(get("/flashcards/review").param("due", "true"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].back").value("B"));
   }
 
+  /** Verifies that the review endpoint accepts a grade and returns an updated DTO. */
   @Test
   void reviewEndpointShouldApplyGradeAndReturnUpdatedDto() throws Exception {
-    // Arrange
     UUID id = UUID.randomUUID();
     int grade = 4;
     LocalDate nextReview = LocalDate.now().plusDays(6);
@@ -89,7 +90,6 @@ class FlashcardControllerTest {
 
     String payload = String.format("{\"grade\":%d}", grade);
 
-    // Act & Assert
     mvc.perform(
             post("/flashcards/{id}/review", id)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -99,29 +99,25 @@ class FlashcardControllerTest {
         .andExpect(jsonPath("$.nextReviewOn").value(nextReview.toString()));
   }
 
+  /** Verifies that a flashcard can be deleted by ID. */
   @Test
   void deleteCard() throws Exception {
-    // arrange
     UUID id = UUID.randomUUID();
-    // stub out the void service call (not strictly required, but explicit):
     BDDMockito.willDoNothing().given(flashcardService).delete(id);
 
-    // act & assert
     mvc.perform(delete("/flashcards/{id}", id)).andExpect(status().isNoContent());
 
-    // verify that the service was invoked
     Mockito.verify(flashcardService).delete(id);
   }
 
+  /** Verifies that only due flashcards are returned when ?due=true is specified. */
   @Test
   @DisplayName("GET /flashcards/review?due=true → returns only due cards")
   void getDue_whenTrue_returnsOnlyDue() throws Exception {
-    // arrange
     var dueCard =
         new FlashcardReviewDto(UUID.randomUUID(), "uno", "one", LocalDate.now().minusDays(1));
     when(flashcardService.getDue(LocalDate.now())).thenReturn(List.of(dueCard));
 
-    // act & assert
     mvc.perform(get("/flashcards/review").param("due", "true").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].front").value("uno"))
@@ -131,16 +127,15 @@ class FlashcardControllerTest {
     verifyNoMoreInteractions(flashcardService);
   }
 
+  /** Verifies that all flashcards are returned when ?due=false is specified. */
   @Test
   @DisplayName("GET /flashcards/review?due=false → returns all cards")
   void getDue_whenFalse_returnsAll() throws Exception {
-    // arrange
     var c1 = new FlashcardReviewDto(UUID.randomUUID(), "dos", "two", LocalDate.now());
     var c2 =
         new FlashcardReviewDto(UUID.randomUUID(), "tres", "three", LocalDate.now().plusDays(1));
     when(flashcardService.getAll()).thenReturn(List.of(c1, c2));
 
-    // act & assert
     mvc.perform(get("/flashcards/review").param("due", "false").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(2))
@@ -151,12 +146,14 @@ class FlashcardControllerTest {
     verifyNoMoreInteractions(flashcardService);
   }
 
+  /** Asserts that omitting the 'due' query parameter results in a 400 Bad Request. */
   @Test
   @DisplayName("GET /flashcards/review → missing ‘due’ param yields 400 Bad Request")
   void getDue_missingParam_badRequest() throws Exception {
     mvc.perform(get("/flashcards/review")).andExpect(status().isBadRequest());
   }
 
+  /** Asserts that a non-boolean 'due' parameter results in a 400 Bad Request. */
   @Test
   @DisplayName("GET /flashcards/review?due=notBoolean → invalid ‘due’ param yields 400")
   void getDue_invalidParam_badRequest() throws Exception {

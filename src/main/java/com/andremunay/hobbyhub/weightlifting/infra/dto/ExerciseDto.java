@@ -8,6 +8,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Data transfer object for creating or retrieving exercise information.
+ *
+ * <p>- `id` must be null on input to prevent client-side ID injection. - `name` and `muscleGroup`
+ * are required fields. - Null fields are omitted from serialized JSON.
+ */
 @Getter
 @Setter
 @NoArgsConstructor

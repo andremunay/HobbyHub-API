@@ -4,9 +4,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Public home controller for the HobbyHub API.
+ *
+ * <p>Serves a styled HTML welcome page with links to Swagger, Stoplight, and observability tools.
+ * Useful for devs and ops engineers as a landing page in non-headless deployments.
+ */
 @RestController
 public class HomeController {
 
+  /**
+   * Serves a static HTML welcome page with links to API docs and diagnostics.
+   *
+   * @return HTTP 200 OK with HTML content
+   */
   @GetMapping("/welcome")
   public ResponseEntity<String> welcomePage() {
     String html =

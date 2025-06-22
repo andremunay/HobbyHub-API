@@ -6,6 +6,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Data transfer object used when creating a new flashcard.
+ *
+ * <p>Includes only the front and back fields, validated to ensure content is provided.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
