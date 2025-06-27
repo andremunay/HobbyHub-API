@@ -1,6 +1,8 @@
 package com.andremunay.hobbyhub.weightlifting.infra.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
@@ -21,11 +23,14 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class WorkoutDto {
-  @Null UUID workoutId;
+  @JsonProperty(access = Access.READ_ONLY)
+  @Null
+  UUID workoutId;
 
-  @NotNull private LocalDate performedOn;
+  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+  @NotNull
+  private LocalDate performedOn;
 
   @Valid
   @Size(min = 1, message = "At least one set is required")

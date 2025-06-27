@@ -21,6 +21,7 @@ spring:
 
   # --- Liquibase ---
   liquibase:
+    contexts: local
     enabled: true
     change-log: classpath:db/changelog/master.yaml
 

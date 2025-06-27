@@ -1,6 +1,7 @@
 package com.andremunay.hobbyhub.weightlifting.infra.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Null;
 import java.util.UUID;
@@ -17,9 +18,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExerciseDto {
-  @Null private UUID id;
+  @JsonIgnore
+  @Schema(hidden = true)
+  @Null
+  private UUID id;
 
   @NotNull private String name;
 

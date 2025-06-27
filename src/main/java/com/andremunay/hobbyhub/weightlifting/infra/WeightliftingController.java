@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * REST controller for managing weightlifting data, including workouts, exercises, and strength
@@ -66,31 +68,31 @@ public class WeightliftingController {
   /**
    * Retrieves one-rep max statistics for a given exercise over the last N sessions.
    *
-   * @param exerciseId exercise identifier
+   * @param exerciseName exercise identifier
    * @param lastN number of recent workouts to include (default = 3)
    * @return HTTP 200 with list of 1RM data points
    */
-  @GetMapping("/stats/1rm/{exerciseId}")
+  @GetMapping("/stats/1rm")
   public ResponseEntity<List<OneRmPointDto>> getOneRmStats(
-      @PathVariable UUID exerciseId, @RequestParam(defaultValue = "3") int lastN) {
-    List<OneRmPointDto> stats = weightliftingService.getOneRepMaxStats(exerciseId, lastN);
+      @RequestParam("exerciseName") String exerciseName,
+      @RequestParam(defaultValue = "3") int lastN) {
+    List<OneRmPointDto> stats = weightliftingService.getOneRepMaxStats(exerciseName, lastN);
     return ResponseEntity.ok(stats);
   }
 
   /**
    * Computes the linear regression slope of weight lifted over the last N sessions.
    *
-   * <p>Used to estimate progressive overload trends.
-   *
-   * @param exerciseId exercise to analyze
+   * @param exerciseName human‐friendly exercise name
    * @param lastN number of sessions to evaluate (default = 10)
    * @return HTTP 200 with numeric slope value
    */
-  @GetMapping("/exercises/{exerciseId}/trend")
+  @GetMapping("/stats/trend")
   public ResponseEntity<Double> getOverloadTrend(
-      @PathVariable("exerciseId") UUID exerciseId,
+      @RequestParam("exerciseName") String exerciseName,
       @RequestParam(name = "lastN", defaultValue = "10") int lastN) {
-    double slope = weightliftingService.computeOverloadTrend(exerciseId, lastN);
+
+    double slope = weightliftingService.computeOverloadTrend(exerciseName, lastN);
     return ResponseEntity.ok(slope);
   }
 
@@ -113,9 +115,9 @@ public class WeightliftingController {
    * @return HTTP 200 with generated exercise ID
    */
   @PostMapping("/exercises")
-  public ResponseEntity<UUID> createExercise(@Valid @RequestBody ExerciseDto dto) {
-    UUID id = weightliftingService.createExercise(dto);
-    return ResponseEntity.ok(id);
+  public ResponseEntity<String> createExercise(@Valid @RequestBody ExerciseDto dto) {
+    String name = weightliftingService.createExercise(dto);
+    return ResponseEntity.ok(name);
   }
 
   /**
@@ -139,20 +141,28 @@ public class WeightliftingController {
    * @return HTTP 204 if successfully deleted
    */
   @DeleteMapping("/workouts/{id}")
-  public ResponseEntity<Void> deleteWorkout(@PathVariable UUID id) {
+  public ResponseEntity<Void> deleteWorkout(@PathVariable("id") String idStr) {
+    UUID id;
+    try {
+      id = UUID.fromString(idStr);
+    } catch (IllegalArgumentException ex) {
+      // “abc” isn’t a valid UUID → 404
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found: " + idStr);
+    }
+
     weightliftingService.deleteWorkout(id);
     return ResponseEntity.noContent().build();
   }
 
   /**
-   * Deletes an exercise by ID.
+   * Deletes an exercise by its human‐friendly name.
    *
-   * @param id the exercise ID
+   * @param exerciseName the name of the exercise to delete
    * @return HTTP 204 if successfully deleted
    */
-  @DeleteMapping("/exercises/{id}")
-  public ResponseEntity<Void> deleteExercise(@PathVariable UUID id) {
-    weightliftingService.deleteExercise(id);
+  @DeleteMapping("/exercises")
+  public ResponseEntity<Void> deleteExercise(@RequestParam("exerciseName") String exerciseName) {
+    weightliftingService.deleteExercise(exerciseName);
     return ResponseEntity.noContent().build();
   }
 }

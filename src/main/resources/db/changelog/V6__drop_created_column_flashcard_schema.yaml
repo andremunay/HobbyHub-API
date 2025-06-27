@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 7
+      author: andremunay
+      changes:
+        - dropColumn:
+            tableName: flashcards
+            columnName: created_at

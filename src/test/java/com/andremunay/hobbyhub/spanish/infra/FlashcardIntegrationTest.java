@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -48,6 +47,7 @@ class FlashcardIntegrationTest {
       roles = {"USER"})
   @Test
   void fullFlow_postAndReview() throws Exception {
+    // 1) Create a new flashcard
     String flashcardJson = "{\"front\":\"test\",\"back\":\"test\"}";
     mockMvc
         .perform(
@@ -57,12 +57,15 @@ class FlashcardIntegrationTest {
                 .content(flashcardJson))
         .andExpect(status().isOk());
 
+    // 2) Fetch only due flashcards via the /review endpoint
     MvcResult result =
         mockMvc
-            .perform(get("/flashcards/review?due=true").accept(MediaType.APPLICATION_JSON))
+            .perform(
+                get("/flashcards/review").param("due", "true").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andReturn();
 
+    // 3) Parse and assert
     String json = result.getResponse().getContentAsString();
     FlashcardReviewDto[] reviews = mapper.readValue(json, FlashcardReviewDto[].class);
 
@@ -108,6 +111,7 @@ class FlashcardIntegrationTest {
       roles = {"USER"})
   @Test
   void reviewEndpoint_updatesNextReviewBasedOnGrade() throws Exception {
+    // 1) Create a flashcard
     String create = "{\"front\":\"uno\",\"back\":\"one\"}";
     mockMvc
         .perform(
@@ -117,27 +121,29 @@ class FlashcardIntegrationTest {
                 .content(create))
         .andExpect(status().isOk());
 
+    // 2) List all flashcards to retrieve the front value
     MvcResult listRes =
         mockMvc
             .perform(get("/flashcards").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andReturn();
-
     FlashcardReviewDto[] all =
         mapper.readValue(listRes.getResponse().getContentAsString(), FlashcardReviewDto[].class);
-    UUID id = all[0].getId();
+    String front = all[0].getFront();
 
-    String gradeJson = "{\"grade\":5}";
+    // 3) Submit a review using the front text and grade
+    String gradeJson = String.format("{\"front\":\"%s\",\"grade\":5}", front);
     MvcResult revRes =
         mockMvc
             .perform(
-                post("/flashcards/" + id + "/review")
+                post("/flashcards/review")
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(gradeJson))
             .andExpect(status().isOk())
             .andReturn();
 
+    // 4) Parse and assert that nextReviewOn is updated
     FlashcardReviewDto updated =
         mapper.readValue(revRes.getResponse().getContentAsString(), FlashcardReviewDto.class);
 
@@ -150,6 +156,7 @@ class FlashcardIntegrationTest {
       roles = {"USER"})
   @Test
   void deleteCard_succeeds() throws Exception {
+    // 1) Create a new flashcard
     String create = "{\"front\":\"dos\",\"back\":\"two\"}";
     mockMvc
         .perform(
@@ -159,6 +166,7 @@ class FlashcardIntegrationTest {
                 .content(create))
         .andExpect(status().isOk());
 
+    // 2) List all flashcards and grab the 'front' value
     MvcResult listRes =
         mockMvc
             .perform(get("/flashcards").accept(MediaType.APPLICATION_JSON))
@@ -166,10 +174,14 @@ class FlashcardIntegrationTest {
             .andReturn();
     FlashcardReviewDto[] all =
         mapper.readValue(listRes.getResponse().getContentAsString(), FlashcardReviewDto[].class);
-    UUID id = all[0].getId();
+    String front = all[0].getFront();
 
-    mockMvc.perform(delete("/flashcards/" + id).with(csrf())).andExpect(status().isNoContent());
+    // 3) Delete by front instead of UUID
+    mockMvc
+        .perform(delete("/flashcards").with(csrf()).param("front", front))
+        .andExpect(status().isNoContent());
 
+    // 4) Verify it no longer appears in the list
     MvcResult after =
         mockMvc
             .perform(get("/flashcards").accept(MediaType.APPLICATION_JSON))
@@ -177,6 +189,6 @@ class FlashcardIntegrationTest {
             .andReturn();
     FlashcardReviewDto[] remaining =
         mapper.readValue(after.getResponse().getContentAsString(), FlashcardReviewDto[].class);
-    assertThat(Arrays.stream(remaining).map(FlashcardReviewDto::getId)).doesNotContain(id);
+    assertThat(Arrays.stream(remaining).map(FlashcardReviewDto::getFront)).doesNotContain(front);
   }
 }

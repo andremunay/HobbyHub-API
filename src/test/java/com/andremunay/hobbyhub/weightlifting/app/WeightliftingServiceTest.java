@@ -6,11 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.andremunay.hobbyhub.shared.util.NameNormalizer;
 import com.andremunay.hobbyhub.weightlifting.domain.Exercise;
 import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
@@ -26,9 +29,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,7 +42,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Unit tests for {@link WeightliftingService}, verifying behavior across: - One-rep max
@@ -44,6 +54,7 @@ import org.springframework.data.domain.PageRequest;
  * mapping and repository interaction
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class WeightliftingServiceTest {
 
   @Mock private WorkoutRepository workoutRepo;
@@ -52,86 +63,50 @@ class WeightliftingServiceTest {
 
   private WeightliftingService service;
   private final UUID exerciseId = UUID.randomUUID();
+  private final String exerciseName = "Bench Press";
+  private final String normalized = NameNormalizer.normalize(exerciseName);
 
   @BeforeEach
   void setUp() {
     service = new WeightliftingService(workoutRepo, exerciseRepo, new EpleyOneRepMaxStrategy());
+    lenient()
+        .when(exerciseRepo.findByName(normalized))
+        .thenReturn(Optional.of(new Exercise(exerciseId, exerciseName, "x")));
   }
 
   /** Verifies that a strictly increasing trend of top weights yields a positive slope. */
   @Test
   void computeOverloadTrend_returnsPositiveSlope_forStrictlyIncreasingWeights() {
-    Exercise e1 = new Exercise(exerciseId, "Bench Press", "Push");
-
+    // prepare synthetic sets
+    Exercise ex = new Exercise(exerciseId, exerciseName, "x");
     Workout w1 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 1));
     Workout w2 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 2));
     Workout w3 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 3));
-
-    WorkoutSet s1 = new WorkoutSet(new WorkoutSetId(w1.getId(), 1), e1, BigDecimal.valueOf(50), 5);
+    WorkoutSet s1 = new WorkoutSet(new WorkoutSetId(w1.getId(), 1), ex, BigDecimal.valueOf(50), 5);
     s1.setWorkout(w1);
-    WorkoutSet s2 = new WorkoutSet(new WorkoutSetId(w2.getId(), 1), e1, BigDecimal.valueOf(60), 5);
+    WorkoutSet s2 = new WorkoutSet(new WorkoutSetId(w2.getId(), 1), ex, BigDecimal.valueOf(60), 5);
     s2.setWorkout(w2);
-    WorkoutSet s3 = new WorkoutSet(new WorkoutSetId(w3.getId(), 1), e1, BigDecimal.valueOf(70), 5);
+    WorkoutSet s3 = new WorkoutSet(new WorkoutSetId(w3.getId(), 1), ex, BigDecimal.valueOf(70), 5);
     s3.setWorkout(w3);
-
     List<WorkoutSet> syntheticSets = List.of(s1, s2, s3);
 
-    Mockito.when(
-            workoutRepo.findSetsByExerciseId(
-                Mockito.eq(exerciseId), Mockito.any(PageRequest.class)))
+    when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(syntheticSets);
 
-    double slope = service.computeOverloadTrend(exerciseId, 3);
+    double slope = service.computeOverloadTrend(exerciseName, 3);
 
-    assertTrue(
-        slope > 0.0,
-        String.format("Expected a positive slope for increasing weights, but was %f", slope));
+    assertTrue(slope > 0.0, "Expected positive slope for increasing weights");
   }
 
   /** Verifies that the correct PageRequest size is passed to the repository. */
   @Test
   void computeOverloadTrend_usesCorrectPageRequestSize() {
-
-    Mockito.when(
-            workoutRepo.findSetsByExerciseId(
-                Mockito.eq(exerciseId), Mockito.any(PageRequest.class)))
-        .thenReturn(List.of());
-
-    service.computeOverloadTrend(exerciseId, 5);
-
+    when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
+        .thenReturn(Collections.emptyList());
+    service.computeOverloadTrend(exerciseName, 5);
     ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-    Mockito.verify(workoutRepo).findSetsByExerciseId(Mockito.eq(exerciseId), captor.capture());
-
+    verify(workoutRepo).findSetsByExerciseId(eq(exerciseId), captor.capture());
     assertEquals(5, captor.getValue().getPageSize());
-  }
-
-  /** Tests that adding a set to a workout links it correctly and persists the change. */
-  @Test
-  void addSetToWorkout_addsNewSetCorrectly() {
-    UUID workoutId = UUID.randomUUID();
-    Exercise e1 = new Exercise(exerciseId, "Bench Press", "Push");
-    Workout workout = new Workout(workoutId, LocalDate.now());
-
-    WorkoutSetDto dto = new WorkoutSetDto();
-    dto.setExerciseId(e1.getId());
-    dto.setWeightKg(BigDecimal.valueOf(100));
-    dto.setReps(5);
-    dto.setOrder(1);
-
-    Mockito.when(workoutRepo.findById(workoutId)).thenReturn(Optional.of(workout));
-    Mockito.when(exerciseRepo.getReferenceById(exerciseId)).thenReturn(e1);
-
-    service.addSetToWorkout(workoutId, dto);
-
-    assertEquals(1, workout.getSets().size());
-    WorkoutSet added = workout.getSets().get(0);
-    assertEquals(e1, added.getExercise());
-    assertEquals(0, added.getWeightKg().compareTo(BigDecimal.valueOf(100)));
-    assertEquals(5, added.getReps());
-    assertEquals(1, added.getId().getOrder());
-    assertEquals(workoutId, added.getId().getWorkoutId());
-
-    Mockito.verify(workoutRepo).save(workout);
   }
 
   /** Ensures that the configured strategy is delegated for 1RM calculation. */
@@ -157,7 +132,7 @@ class WeightliftingServiceTest {
   /** Verifies correct ordering and mapping in 1RM stats result. */
   @Test
   void getOneRepMaxStats_returnsSortedOneRmPoints() {
-    Exercise e = new Exercise(exerciseId, "Squat", "Legs");
+    Exercise e = new Exercise(exerciseId, exerciseName, "x");
     Workout w1 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 1));
     Workout w2 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 5, 2));
     WorkoutSet s1 = new WorkoutSet(new WorkoutSetId(w1.getId(), 1), e, BigDecimal.valueOf(10), 30);
@@ -165,68 +140,32 @@ class WeightliftingServiceTest {
     WorkoutSet s2 = new WorkoutSet(new WorkoutSetId(w2.getId(), 1), e, BigDecimal.valueOf(20), 30);
     s2.setWorkout(w2);
     List<WorkoutSet> sets = List.of(s2, s1);
-    Mockito.when(
-            workoutRepo.findSetsByExerciseId(
-                Mockito.eq(exerciseId), Mockito.any(PageRequest.class)))
-        .thenReturn(sets);
+    when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class))).thenReturn(sets);
 
-    List<OneRmPointDto> stats = service.getOneRepMaxStats(exerciseId, 2);
+    List<OneRmPointDto> stats = service.getOneRepMaxStats(exerciseName, 2);
 
     assertEquals(2, stats.size());
-    OneRmPointDto p1 = stats.get(0);
-    assertEquals(w1.getId(), p1.getWorkoutId());
-    assertEquals(w1.getPerformedOn(), p1.getDate());
-    assertEquals(20.0, p1.getOneRepMax(), 0.0001);
-
-    OneRmPointDto p2 = stats.get(1);
-    assertEquals(w2.getId(), p2.getWorkoutId());
-    assertEquals(w2.getPerformedOn(), p2.getDate());
-    assertEquals(40.0, p2.getOneRepMax(), 0.0001);
-  }
-
-  /** Ensures a new workout and set can be created and saved correctly. */
-  @Test
-  void createWorkout_savesWorkoutAndReturnsId() {
-    WorkoutDto req = new WorkoutDto();
-    req.setPerformedOn(LocalDate.now());
-    WorkoutSetDto setDto = new WorkoutSetDto();
-    setDto.setExerciseId(exerciseId);
-    setDto.setOrder(1);
-    setDto.setWeightKg(BigDecimal.valueOf(80));
-    setDto.setReps(5);
-    req.setSets(List.of(setDto));
-
-    Exercise exercise = new Exercise(exerciseId, "Bench", "Push");
-    when(exerciseRepo.findById(exerciseId)).thenReturn(Optional.of(exercise));
-
-    UUID returned = service.createWorkout(req);
-
-    ArgumentCaptor<Workout> captor = ArgumentCaptor.forClass(Workout.class);
-    verify(workoutRepo).save(captor.capture());
-    Workout saved = captor.getValue();
-
-    assertEquals(saved.getId(), returned);
-    assertEquals(req.getPerformedOn(), saved.getPerformedOn());
-    assertEquals(1, saved.getSets().size());
-    WorkoutSet savedSet = saved.getSets().get(0);
-    assertEquals(80, savedSet.getWeightKg().intValue());
+    assertEquals(w1.getId(), stats.get(0).getWorkoutId());
+    assertEquals(w1.getPerformedOn(), stats.get(0).getDate());
+    assertEquals(20.0, stats.get(0).getOneRepMax(), 1e-6);
+    assertEquals(40.0, stats.get(1).getOneRepMax(), 1e-6);
   }
 
   /** Verifies that an exercise is created, saved, and returned with an ID. */
   @Test
-  void createExercise_savesExerciseAndReturnsId() {
+  void createExercise_savesExerciseAndReturnsName() {
     ExerciseDto dto = new ExerciseDto();
     dto.setName("Pull Up");
     dto.setMuscleGroup("Back");
     ArgumentCaptor<Exercise> captor = ArgumentCaptor.forClass(Exercise.class);
 
-    UUID returned = service.createExercise(dto);
+    String returned = service.createExercise(dto);
 
     Mockito.verify(exerciseRepo).save(captor.capture());
     Exercise saved = captor.getValue();
 
-    assertEquals(returned, saved.getId());
-    assertEquals("Pull Up", saved.getName());
+    assertEquals(returned, saved.getName());
+    assertEquals("pullup", saved.getName());
     assertEquals("Back", saved.getMuscleGroup());
   }
 
@@ -280,11 +219,9 @@ class WeightliftingServiceTest {
   /** Delegates deletion of an exercise by ID to the repository. */
   @Test
   void deleteExercise_callsRepositoryDelete() {
-    UUID id = UUID.randomUUID();
-
-    service.deleteExercise(id);
-
-    Mockito.verify(exerciseRepo).deleteById(id);
+    service.deleteExercise(exerciseName);
+    verify(exerciseRepo)
+        .delete(argThat(ex -> ex.getName().equals(exerciseName) && ex.getId().equals(exerciseId)));
   }
 
   /** Returns DTO-mapped list of all exercises. */
@@ -337,19 +274,17 @@ class WeightliftingServiceTest {
   void computeOverloadTrend_emptySets_returnsZeroSlope() {
     when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(Collections.emptyList());
-
-    double slope = service.computeOverloadTrend(exerciseId, 5);
-
+    double slope = service.computeOverloadTrend(exerciseName, 5);
     assertEquals(0.0, slope, 0.0001);
   }
 
   /** Verifies proper sort and mapping order in 1RM stat results. */
   @Test
   void getOneRepMaxStats_mapsAndOrdersCorrectly() {
+    // given
+    Exercise ex = new Exercise(exerciseId, exerciseName, "legs");
     Workout w1 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 1, 1));
     Workout w2 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 1, 2));
-    Exercise ex = new Exercise(exerciseId, "Squat", "Legs");
-
     WorkoutSet set1 =
         new WorkoutSet(new WorkoutSetId(w1.getId(), 1), ex, BigDecimal.valueOf(100), 5);
     set1.setWorkout(w1);
@@ -360,8 +295,10 @@ class WeightliftingServiceTest {
     when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(List.of(set2, set1));
 
-    List<OneRmPointDto> stats = service.getOneRepMaxStats(exerciseId, 2);
+    // when
+    List<OneRmPointDto> stats = service.getOneRepMaxStats(exerciseName, 2);
 
+    // then
     assertEquals(2, stats.size());
     assertEquals(LocalDate.of(2025, 1, 1), stats.get(0).getDate());
     assertEquals(LocalDate.of(2025, 1, 2), stats.get(1).getDate());
@@ -370,10 +307,17 @@ class WeightliftingServiceTest {
   /** Returns an empty list when no sets are available for 1RM calculation. */
   @Test
   void getOneRepMaxStats_emptySets_returnsEmptyList() {
+    // stub lookup of the name → entity
+    when(exerciseRepo.findByName(eq(NameNormalizer.normalize(exerciseName))))
+        .thenReturn(Optional.of(new Exercise(exerciseId, exerciseName, "group")));
+
+    // stub no sets returned
     when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(Collections.emptyList());
 
-    List<OneRmPointDto> stats = service.getOneRepMaxStats(exerciseId, 3);
+    // now call by name, not UUID
+    List<OneRmPointDto> stats = service.getOneRepMaxStats(exerciseName, 3);
+
     assertTrue(stats.isEmpty());
   }
 
@@ -382,31 +326,35 @@ class WeightliftingServiceTest {
   void createWorkout_missingExercise_throwsNoSuchElement() {
     WorkoutDto req = new WorkoutDto();
     req.setPerformedOn(LocalDate.now());
+
     WorkoutSetDto dto = new WorkoutSetDto();
-    dto.setExerciseId(exerciseId);
+    dto.setExerciseName("benchpress"); // now supply name instead of ID
     dto.setOrder(1);
     dto.setWeightKg(BigDecimal.TEN);
     dto.setReps(5);
     req.setSets(List.of(dto));
-    when(exerciseRepo.findById(exerciseId)).thenReturn(Optional.empty());
+
+    // stub lookup by name to return empty
+    when(exerciseRepo.findByName(NameNormalizer.normalize("benchpress")))
+        .thenReturn(Optional.empty());
+
     NoSuchElementException ex =
         assertThrows(NoSuchElementException.class, () -> service.createWorkout(req));
-    assertTrue(ex.getMessage().contains(exerciseId.toString()));
+    assertTrue(ex.getMessage().contains("benchpress"));
   }
 
   /** Saves an exercise and returns the generated UUID. */
   @Test
-  void createExercise_savesAndReturnsId() {
+  void createExercise_savesAndReturnsName() {
     ExerciseDto dto = new ExerciseDto();
     dto.setName("Deadlift");
     dto.setMuscleGroup("Back");
 
-    UUID id = service.createExercise(dto);
+    service.createExercise(dto);
 
     ArgumentCaptor<Exercise> cap = ArgumentCaptor.forClass(Exercise.class);
     verify(exerciseRepo).save(cap.capture());
-    assertEquals("Deadlift", cap.getValue().getName());
-    assertEquals(cap.getValue().getId(), id);
+    assertEquals("deadlift", cap.getValue().getName());
   }
 
   /** Throws if trying to add a set to a missing workout. */
@@ -479,9 +427,15 @@ class WeightliftingServiceTest {
   /** Verifies exercise deletion delegates to repository. */
   @Test
   void deleteExercise_delegatesToRepo() {
-    UUID exId = UUID.randomUUID();
-    service.deleteExercise(exId);
-    verify(exerciseRepo).deleteById(exId);
+    when(exerciseRepo.findByName(eq((exerciseName))))
+        .thenReturn(Optional.of(new Exercise(exerciseId, exerciseName, "muscleGroup")));
+
+    // when: delete by name
+    service.deleteExercise(exerciseName);
+
+    // then: repository.delete(...) is called with the resolved Exercise
+    verify(exerciseRepo)
+        .delete(argThat(ex -> ex.getId().equals(exerciseId) && ex.getName().equals(exerciseName)));
   }
 
   /** Ensures all exercises are mapped correctly to DTOs. */
@@ -544,25 +498,30 @@ class WeightliftingServiceTest {
   /** Returns a negative slope when weights are strictly decreasing. */
   @Test
   void computeOverloadTrend_decreasingWeights_returnsNegativeSlope() {
-    Exercise ex = new Exercise(exerciseId, "Test", "TestGroup");
+    // arrange: lookup by name yields our Exercise
+    when(exerciseRepo.findByName(eq(NameNormalizer.normalize(exerciseName))))
+        .thenReturn(Optional.of(new Exercise(exerciseId, exerciseName, "TestGroup")));
+
+    // arrange: create three workouts with strictly decreasing weights
     Workout w1 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 1, 1));
     Workout w2 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 1, 2));
     Workout w3 = new Workout(UUID.randomUUID(), LocalDate.of(2025, 1, 3));
 
-    WorkoutSet s1 =
-        new WorkoutSet(new WorkoutSetId(UUID.randomUUID(), 1), ex, BigDecimal.valueOf(70), 5);
-    WorkoutSet s2 =
-        new WorkoutSet(new WorkoutSetId(UUID.randomUUID(), 2), ex, BigDecimal.valueOf(60), 5);
-    WorkoutSet s3 =
-        new WorkoutSet(new WorkoutSetId(UUID.randomUUID(), 3), ex, BigDecimal.valueOf(50), 5);
+    Exercise ex = new Exercise(exerciseId, exerciseName, "TestGroup");
+    WorkoutSet s1 = new WorkoutSet(new WorkoutSetId(w1.getId(), 1), ex, BigDecimal.valueOf(70), 5);
+    WorkoutSet s2 = new WorkoutSet(new WorkoutSetId(w2.getId(), 1), ex, BigDecimal.valueOf(60), 5);
+    WorkoutSet s3 = new WorkoutSet(new WorkoutSetId(w3.getId(), 1), ex, BigDecimal.valueOf(50), 5);
     s1.setWorkout(w1);
     s2.setWorkout(w2);
     s3.setWorkout(w3);
+
     when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(List.of(s1, s2, s3));
 
-    double slope = service.computeOverloadTrend(exerciseId, 3);
+    // act: call by exerciseName
+    double slope = service.computeOverloadTrend(exerciseName, 3);
 
+    // assert: slope is negative
     assertTrue(
         slope < 0.0,
         String.format("Expected a negative slope for decreasing weights, but was %f", slope));
@@ -590,9 +549,14 @@ class WeightliftingServiceTest {
   /** Groups by workout ID and limits to the latest N sessions. */
   @Test
   void computeOverloadTrend_groupsByWorkoutId_and_limitsToLastN() {
+    // arrange: resolve name → Exercise
+    when(exerciseRepo.findByName(eq(NameNormalizer.normalize(exerciseName))))
+        .thenReturn(Optional.of(new Exercise(exerciseId, exerciseName, "Group")));
+
+    // arrange: two workouts, multiple sets in the first workout
     UUID wid1 = UUID.randomUUID();
     UUID wid2 = UUID.randomUUID();
-    Exercise ex = new Exercise(exerciseId, "Test", "Group");
+    Exercise ex = new Exercise(exerciseId, exerciseName, "Group");
     Workout w1 = new Workout(wid1, LocalDate.of(2025, 1, 1));
     Workout w2 = new Workout(wid2, LocalDate.of(2025, 1, 2));
     WorkoutSet s1a = new WorkoutSet(new WorkoutSetId(wid1, 1), ex, BigDecimal.valueOf(50), 5);
@@ -604,50 +568,247 @@ class WeightliftingServiceTest {
     when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(List.of(s1a, s1b, s2));
 
-    double slope = service.computeOverloadTrend(exerciseId, 2);
+    // act: call by name, limit to last 2 workouts
+    double slope = service.computeOverloadTrend(exerciseName, 2);
+
+    // assert: negative slope after grouping and limiting to lastN
     assertTrue(
         slope < 0.0,
         String.format(
             "Expected a negative slope after grouping and limiting lastN, but was %f", slope));
   }
 
-  /** Successfully saves and verifies a new set is added. */
-  @Test
-  void addSetToWorkout_success_savesNewSet() {
-    UUID wid = UUID.randomUUID();
-    Workout workout = new Workout(wid, LocalDate.now());
-    when(workoutRepo.findById(wid)).thenReturn(Optional.of(workout));
-    Exercise exObj = new Exercise(exerciseId, "Deadlift", "Leg");
-    when(exerciseRepo.getReferenceById(exerciseId)).thenReturn(exObj);
-    WorkoutSetDto dto = new WorkoutSetDto();
-    dto.setExerciseId(exerciseId);
-    dto.setOrder(1);
-    dto.setWeightKg(BigDecimal.valueOf(90));
-    dto.setReps(3);
-    service.addSetToWorkout(wid, dto);
-    ArgumentCaptor<Workout> capW = ArgumentCaptor.forClass(Workout.class);
-    verify(workoutRepo).save(capW.capture());
-    Workout saved = capW.getValue();
-    assertEquals(1, saved.getSets().size());
-    WorkoutSet s = saved.getSets().iterator().next();
-    assertEquals(exerciseId, s.getExercise().getId());
-    assertEquals(3, s.getReps());
-  }
-
   /** Returns 0 slope when there's only one data point. */
   @Test
   void computeOverloadTrend_singlePoint_returnsZeroSlope() {
-    UUID wid = UUID.randomUUID();
-    Exercise ex = new Exercise(exerciseId, "Test", "TG");
-    Workout w = new Workout(wid, LocalDate.now());
-    WorkoutSet single = new WorkoutSet(new WorkoutSetId(wid, 1), ex, BigDecimal.valueOf(100), 5);
-    single.setWorkout(w);
+    // arrange: resolve name → Exercise
+    when(exerciseRepo.findByName(eq(NameNormalizer.normalize(exerciseName))))
+        .thenReturn(Optional.of(new Exercise(exerciseId, exerciseName, "TG")));
 
+    // arrange: one workout set only
+    UUID wid = UUID.randomUUID();
+    Workout w = new Workout(wid, LocalDate.now());
+    WorkoutSet single =
+        new WorkoutSet(
+            new WorkoutSetId(wid, 1),
+            new Exercise(exerciseId, exerciseName, "TG"),
+            BigDecimal.valueOf(100),
+            5);
+    single.setWorkout(w);
     when(workoutRepo.findSetsByExerciseId(eq(exerciseId), any(PageRequest.class)))
         .thenReturn(List.of(single));
 
-    double slope = service.computeOverloadTrend(exerciseId, 1);
+    // act: call by name, not UUID
+    double slope = service.computeOverloadTrend(exerciseName, 1);
 
+    // assert
     assertEquals(0.0, slope, "With only one data point, slope should be 0");
+  }
+
+  /* Verifies that computeOverloadTrend throws EntityNotFoundException for an unknown exercise name */
+  @Test
+  void computeOverloadTrend_unknownExercise_throwsEntityNotFound() {
+    String unknown = NameNormalizer.normalize("nonexistent");
+    when(exerciseRepo.findByName(unknown)).thenReturn(Optional.empty());
+
+    EntityNotFoundException ex =
+        assertThrows(
+            EntityNotFoundException.class, () -> service.computeOverloadTrend("nonexistent", 3));
+    assertNotNull(ex.getMessage());
+  }
+
+  /* Verifies that getOneRepMaxStats throws EntityNotFoundException for an unknown exercise name */
+  @Test
+  void getOneRepMaxStats_unknownExercise_throwsEntityNotFound() {
+    String unknown = NameNormalizer.normalize("nonexistent");
+    when(exerciseRepo.findByName(unknown)).thenReturn(Optional.empty());
+
+    EntityNotFoundException ex =
+        assertThrows(
+            EntityNotFoundException.class, () -> service.getOneRepMaxStats("nonexistent", 3));
+    assertNotNull(ex.getMessage());
+  }
+
+  /* Verifies that createExercise throws ResponseStatusException with CONFLICT when the exercise already exists */
+  @Test
+  void createExercise_conflict_throwsResponseStatusException() {
+    ExerciseDto dto = new ExerciseDto();
+    dto.setName(exerciseName);
+    dto.setMuscleGroup("Chest");
+    String nameNorm = NameNormalizer.normalize(exerciseName);
+    when(exerciseRepo.existsByName(eq(nameNorm))).thenReturn(true);
+
+    ResponseStatusException ex =
+        assertThrows(ResponseStatusException.class, () -> service.createExercise(dto));
+    assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    String reason = Objects.requireNonNull(ex.getReason(), "Exception reason should not be null");
+    assertTrue(
+        reason.contains(exerciseName), "Reason should mention the conflicting exercise name");
+  }
+
+  /* Verifies that addSetToWorkout throws EntityNotFoundException when the referenced exercise does not exist */
+  @Test
+  void addSetToWorkout_unknownExercise_throwsEntityNotFound() {
+    // given an existing workout
+    UUID workoutId = UUID.randomUUID();
+    Workout workout = new Workout(workoutId, LocalDate.now());
+    when(workoutRepo.findById(workoutId)).thenReturn(Optional.of(workout));
+
+    // and a DTO with a nonexistent exercise name
+    WorkoutSetDto dto = new WorkoutSetDto();
+    dto.setExerciseName("badname");
+    dto.setOrder(1);
+    dto.setWeightKg(BigDecimal.valueOf(100));
+    dto.setReps(5);
+    String badNorm = NameNormalizer.normalize("badname");
+    when(exerciseRepo.findByName(eq(badNorm))).thenReturn(Optional.empty());
+
+    // when & then: expect EntityNotFoundException
+    EntityNotFoundException ex =
+        assertThrows(EntityNotFoundException.class, () -> service.addSetToWorkout(workoutId, dto));
+    assertTrue(
+        ex.getMessage().contains("badname"),
+        "Exception message should mention the missing exercise name");
+  }
+
+  /* Verifies that deleteExercise throws EntityNotFoundException when attempting to delete a nonexistent exercise */
+  @Test
+  void deleteExercise_unknownExercise_throwsEntityNotFound() {
+    // stub lookup to return empty for nonexistent exercise
+    String unknown = NameNormalizer.normalize("nonexistent");
+    when(exerciseRepo.findByName(eq(unknown))).thenReturn(Optional.empty());
+
+    // assert that deleting a nonexistent exercise throws EntityNotFoundException
+    EntityNotFoundException ex =
+        assertThrows(EntityNotFoundException.class, () -> service.deleteExercise("nonexistent"));
+    assertTrue(
+        ex.getMessage().contains("nonexistent"),
+        "Exception message should mention the missing exercise name");
+  }
+
+  /* Verifies that createWorkout correctly maps and persists a workout with multiple sets */
+  @Test
+  void createWorkout_withSets_savesWorkoutAndSets() {
+    // Build the incoming DTO with existing exercises
+    WorkoutDto dto = new WorkoutDto();
+    LocalDate performedOn = LocalDate.of(2025, 1, 1);
+    dto.setPerformedOn(performedOn);
+
+    WorkoutSetDto set1 = new WorkoutSetDto();
+    set1.setExerciseName("Back Squat");
+    set1.setOrder(1);
+    set1.setWeightKg(BigDecimal.valueOf(100));
+    set1.setReps(5);
+
+    WorkoutSetDto set2 = new WorkoutSetDto();
+    set2.setExerciseName("Deadlift");
+    set2.setOrder(2);
+    set2.setWeightKg(BigDecimal.valueOf(150));
+    set2.setReps(3);
+
+    dto.setSets(List.of(set1, set2));
+
+    // Stub repository lookups for existing exercises
+    UUID backSquatId = UUID.randomUUID();
+    Exercise backSquat = new Exercise(backSquatId, NameNormalizer.normalize("Back Squat"), "Legs");
+    when(exerciseRepo.findByName(eq(NameNormalizer.normalize("Back Squat"))))
+        .thenReturn(Optional.of(backSquat));
+
+    UUID deadliftId = UUID.randomUUID();
+    Exercise deadlift = new Exercise(deadliftId, NameNormalizer.normalize("Deadlift"), "Back");
+    when(exerciseRepo.findByName(eq(NameNormalizer.normalize("Deadlift"))))
+        .thenReturn(Optional.of(deadlift));
+
+    // Capture and verify saved Workout
+    ArgumentCaptor<Workout> captor = ArgumentCaptor.forClass(Workout.class);
+
+    UUID returnedId = service.createWorkout(dto);
+
+    verify(workoutRepo).save(captor.capture());
+    Workout saved = captor.getValue();
+
+    // Verify metadata
+    assertEquals(returnedId, saved.getId());
+    assertEquals(performedOn, saved.getPerformedOn());
+    assertEquals(2, saved.getSets().size());
+
+    Map<Integer, WorkoutSet> byOrder =
+        saved.getSets().stream().collect(Collectors.toMap(ws -> ws.getId().getOrder(), ws -> ws));
+
+    WorkoutSet ws1 = byOrder.get(1);
+    assertNotNull(ws1);
+    assertEquals(100, ws1.getWeightKg().intValue());
+    assertEquals(5, ws1.getReps());
+    assertEquals(NameNormalizer.normalize("Back Squat"), ws1.getExercise().getName());
+
+    WorkoutSet ws2 = byOrder.get(2);
+    assertNotNull(ws2);
+    assertEquals(150, ws2.getWeightKg().intValue());
+    assertEquals(3, ws2.getReps());
+    assertEquals(NameNormalizer.normalize("Deadlift"), ws2.getExercise().getName());
+  }
+
+  /* Verifies that addSetToWorkout correctly adds and saves a new set for an existing workout and exercise */
+  @Test
+  void addSetToWorkout_validWorkoutAndExercise_savesNewSet() {
+    // given: an existing workout with no sets
+    UUID workoutId = UUID.randomUUID();
+    Workout workout = new Workout(workoutId, LocalDate.of(2025, 2, 2));
+    when(workoutRepo.findById(workoutId)).thenReturn(Optional.of(workout));
+
+    // and an existing exercise lookup
+    String rawName = "Bench Press";
+    String normName = NameNormalizer.normalize(rawName);
+    Exercise exercise = new Exercise(exerciseId, normName, "Push");
+    when(exerciseRepo.findByName(eq(normName))).thenReturn(Optional.of(exercise));
+
+    // and a DTO describing the new set
+    WorkoutSetDto dto = new WorkoutSetDto();
+    dto.setExerciseName(rawName);
+    dto.setOrder(1);
+    dto.setWeightKg(BigDecimal.valueOf(80));
+    dto.setReps(8);
+
+    // capture the Workout saved to the repo
+    ArgumentCaptor<Workout> cap = ArgumentCaptor.forClass(Workout.class);
+
+    // when
+    service.addSetToWorkout(workoutId, dto);
+
+    // then: verify save and inspect the added set
+    verify(workoutRepo).save(cap.capture());
+    Workout saved = cap.getValue();
+    assertEquals(1, saved.getSets().size(), "Should have exactly one set");
+
+    WorkoutSet added = saved.getSets().iterator().next();
+    assertEquals(1, added.getId().getOrder());
+    assertEquals(80, added.getWeightKg().intValue());
+    assertEquals(8, added.getReps());
+    assertEquals(exercise, added.getExercise());
+  }
+
+  /* Verifies that getAllExercises returns an empty list when no exercises are present */
+  @Test
+  void getAllExercises_emptyList_returnsEmptyList() {
+    // stub findAll to return empty list
+    when(exerciseRepo.findAll()).thenReturn(Collections.emptyList());
+
+    List<ExerciseDto> dtos = service.getAllExercises();
+    assertNotNull(dtos, "Result should not be null");
+    assertTrue(dtos.isEmpty(), "Expected empty list when no exercises exist");
+  }
+
+  /* Verifies that getAllWorkouts returns an empty list when no workouts are present */
+  @Test
+  void getAllWorkouts_emptyList_returnsEmptyList() {
+    // stub repository to return no workouts
+    when(workoutRepo.findAllWithSets()).thenReturn(Collections.emptyList());
+
+    // execute
+    List<WorkoutDto> dtos = service.getAllWorkouts();
+
+    // verify
+    assertNotNull(dtos, "Result should not be null");
+    assertTrue(dtos.isEmpty(), "Expected empty list when no workouts exist");
   }
 }
