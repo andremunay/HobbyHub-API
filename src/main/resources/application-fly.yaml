@@ -34,6 +34,7 @@ spring:
 server:
   address: 0.0.0.0
   port: 8080
+  forward-headers-strategy: native
   servlet:
     session:
       cookie:
@@ -87,6 +88,8 @@ management:
 logging:
   level:
     root: INFO
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
 
 springdoc:
   swagger-ui:
