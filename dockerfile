@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=builder /app/target/hobbyhub-0.0.1-SNAPSHOT.jar app.jar
 
 # Spring profile (defaults to 'fly' if not set explicitly)
-ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-fly}
+ENV SPRING_PROFILES_ACTIVE=fly
 
 # Optional JVM heap flags – set these only if a special env var is defined
 ENV JAVA_OPTS=""
