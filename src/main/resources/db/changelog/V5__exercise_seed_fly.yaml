@@ -1,0 +1,152 @@
+databaseChangeLog:
+  - changeSet:
+      id: 6
+      author: andremunay
+      changes:
+        - truncate:
+          tableName: exercises
+          
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "4afa9a56-41a8-4d4b-a0e5-e1b0227c2e3a"
+              - column:
+                  name: name
+                  value: "benchpress"
+              - column:
+                  name: muscle_group
+                  value: "horizontal_push"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "7f8097e1-0fda-4bf3-af31-67cff454bd84"
+              - column:
+                  name: name
+                  value: "pushup"
+              - column:
+                  name: muscle_group
+                  value: "horizontal_push"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "71c8c63f-f716-4b08-93b5-5de882eb3634"
+              - column:
+                  name: name
+                  value: "overheadpress"
+              - column:
+                  name: muscle_group
+                  value: "vertical_push"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "ff6e5eca-4f6c-4c18-b6d7-9d619c6e335f"
+              - column:
+                  name: name
+                  value: "dumbbellshoulderpress"
+              - column:
+                  name: muscle_group
+                  value: "vertical_push"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "fb0710b2-77ca-4639-8d27-6b3ebe64c401"
+              - column:
+                  name: name
+                  value: "bentoverrow"
+              - column:
+                  name: muscle_group
+                  value: "horizontal_pull"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "394787f2-0f14-4025-b430-3d52b80125fa"
+              - column:
+                  name: name
+                  value: "seatedcablerow"
+              - column:
+                  name: muscle_group
+                  value: "horizontal_pull"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "0d0aefde-7509-4ec7-a38f-e271805fe5b8"
+              - column:
+                  name: name
+                  value: "pullup"
+              - column:
+                  name: muscle_group
+                  value: "vertical_pull"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "78eabcf5-e52a-4b80-87f6-dcac01a847cf"
+              - column:
+                  name: name
+                  value: "latpulldown"
+              - column:
+                  name: muscle_group
+                  value: "vertical_pull"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "42297000-ba92-42c3-a91b-46649b144e66"
+              - column:
+                  name: name
+                  value: "backsquat"
+              - column:
+                  name: muscle_group
+                  value: "squat"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "9681a4e1-74b3-434d-afd3-ab3c29e23118"
+              - column:
+                  name: name
+                  value: "frontsquat"
+              - column:
+                  name: muscle_group
+                  value: "squat"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "883fa705-40fc-47bb-a261-e1810b9c8f32"
+              - column:
+                  name: name
+                  value: "deadlift"
+              - column:
+                  name: muscle_group
+                  value: "hinge"
+        - insert:
+            tableName: exercises
+            columns:
+              - column:
+                  name: id
+                  value: "e2210cca-26b3-4cb6-83b4-923ff1dea351"
+              - column:
+                  name: name
+                  value: "romaniandeadlift"
+              - column:
+                  name: muscle_group
+                  value: "hinge"

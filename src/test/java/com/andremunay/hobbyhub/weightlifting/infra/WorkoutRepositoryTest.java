@@ -48,7 +48,7 @@ class WorkoutRepositoryTest {
   @Test
   @DisplayName("findSetsByExerciseId returns WorkoutSets ordered by workout date descending")
   void findSetsByExerciseId() {
-    Exercise exercise = new Exercise(UUID.randomUUID(), "Squat", "Legs");
+    Exercise exercise = new Exercise(UUID.randomUUID(), "test", "test");
     entityManager.persist(exercise);
 
     Workout older = new Workout(UUID.randomUUID(), LocalDate.now().minusDays(5));
@@ -78,7 +78,7 @@ class WorkoutRepositoryTest {
   @Test
   @DisplayName("findAllWithSets fetches workouts with their sets eagerly")
   void findAllWithSets() {
-    Exercise exercise = new Exercise(UUID.randomUUID(), "Bench Press", "Chest");
+    Exercise exercise = new Exercise(UUID.randomUUID(), "test", "test");
     entityManager.persist(exercise);
 
     Workout workout = new Workout(UUID.randomUUID(), LocalDate.now());

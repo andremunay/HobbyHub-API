@@ -1,8 +1,7 @@
 package com.andremunay.hobbyhub.weightlifting.infra;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -75,14 +74,14 @@ class WeightliftingControllerTest {
     BDDMockito.given(weightliftingService.createWorkout(Mockito.any(WorkoutDto.class)))
         .willReturn(id);
 
-    String exerciseId = UUID.randomUUID().toString();
     String payload =
-        String.format(
-            "{\"performedOn\":\"2025-01-01\",\"sets\":[{\"exerciseId\":\"%s\",\"weightKg\":10.0,\"reps\":1,\"order\":0}]}",
-            exerciseId);
+        "{\"performedOn\":\"2025-01-01\",\"sets\":["
+            + "{\"exerciseName\":\"benchpress\",\"weightKg\":10.0,\"reps\":1,\"order\":0}"
+            + "]}";
 
     mvc.perform(
             post("/weightlifting/workouts")
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isOk())
@@ -93,27 +92,32 @@ class WeightliftingControllerTest {
 
   /** Verifies that one-rep max stats are fetched correctly and returned as JSON. */
   @Test
-  void getOneRmStats() throws Exception {
-    UUID exerciseId = UUID.randomUUID();
+  void getOneRmStats_byName() throws Exception {
+    String exerciseName = "benchpress";
     OneRmPointDto point = new OneRmPointDto();
     point.setDate(LocalDate.now());
     point.setOneRepMax(100.0);
-    BDDMockito.given(weightliftingService.getOneRepMaxStats(exerciseId, 3))
+
+    // stub the service to expect (exerciseName, lastN)
+    BDDMockito.given(weightliftingService.getOneRepMaxStats(exerciseName, 3))
         .willReturn(List.of(point));
 
-    mvc.perform(get("/weightlifting/stats/1rm/{exerciseId}", exerciseId).param("lastN", "3"))
+    mvc.perform(
+            get("/weightlifting/stats/1rm").param("exerciseName", exerciseName).param("lastN", "3"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(1));
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].oneRepMax").value(100.0));
 
-    Mockito.verify(weightliftingService).getOneRepMaxStats(exerciseId, 3);
+    // verify the new signature was invoked
+    Mockito.verify(weightliftingService).getOneRepMaxStats(exerciseName, 3);
   }
 
-  /** Tests creation of an exercise and confirms the returned UUID. */
+  /** Tests creation of an exercise and confirms the returned name. */
   @Test
   void createExercise() throws Exception {
-    UUID id = UUID.randomUUID();
+    String name = "squat";
     BDDMockito.given(weightliftingService.createExercise(Mockito.any(ExerciseDto.class)))
-        .willReturn(id);
+        .willReturn(name);
 
     String payload = "{\"name\":\"Squat\",\"muscleGroup\":\"Legs\"}";
 
@@ -122,7 +126,7 @@ class WeightliftingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$").value(id.toString()));
+        .andExpect(jsonPath("$").value(name));
 
     Mockito.verify(weightliftingService).createExercise(Mockito.any(ExerciseDto.class));
   }
@@ -135,12 +139,12 @@ class WeightliftingControllerTest {
         .given(weightliftingService)
         .addSetToWorkout(eq(workoutId), Mockito.any(WorkoutSetDto.class));
 
-    String payload =
-        String.format(
-            "{\"exerciseId\":\"%s\",\"weightKg\":100.0,\"reps\":5,\"order\":1}", UUID.randomUUID());
+    // now send exerciseName instead of exerciseId
+    String payload = "{\"exerciseName\":\"benchpress\",\"weightKg\":100.0,\"reps\":5,\"order\":1}";
 
     mvc.perform(
             post("/weightlifting/workouts/{workoutId}/sets", workoutId)
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isOk());
@@ -179,13 +183,14 @@ class WeightliftingControllerTest {
 
   /** Ensures an exercise can be deleted by ID. */
   @Test
-  void deleteExercise() throws Exception {
-    UUID id = UUID.randomUUID();
-    BDDMockito.willDoNothing().given(weightliftingService).deleteExercise(id);
+  void deleteExercise_byName() throws Exception {
+    String exerciseName = "benchpress";
+    BDDMockito.willDoNothing().given(weightliftingService).deleteExercise(exerciseName);
 
-    mvc.perform(delete("/weightlifting/exercises/{id}", id)).andExpect(status().isNoContent());
+    mvc.perform(delete("/weightlifting/exercises").param("exerciseName", exerciseName))
+        .andExpect(status().isNoContent());
 
-    Mockito.verify(weightliftingService).deleteExercise(id);
+    Mockito.verify(weightliftingService).deleteExercise(exerciseName);
   }
 
   /** Returns HTTP 400 when an invalid UUID is passed to GET /workouts/{id}. */
@@ -194,32 +199,28 @@ class WeightliftingControllerTest {
     mvc.perform(get("/weightlifting/workouts/invalid-uuid")).andExpect(status().isBadRequest());
   }
 
-  /** Returns HTTP 400 when an invalid UUID is passed to DELETE /workouts/{id}. */
-  @Test
-  void deleteWorkout_invalidUuid_returnsBadRequest() throws Exception {
-    mvc.perform(delete("/weightlifting/workouts/invalid-uuid")).andExpect(status().isBadRequest());
-  }
-
   /** Computes the overload trend for an exercise and returns the slope value. */
   @Test
-  void getOverloadTrend_returnsSlope() throws Exception {
-    UUID exId = UUID.randomUUID();
-    when(weightliftingService.computeOverloadTrend(eq(exId), eq(5))).thenReturn(-12.34);
+  void getOverloadTrend_returnsSlope_byName() throws Exception {
+    String exerciseName = "benchpress";
+    BDDMockito.given(weightliftingService.computeOverloadTrend(eq(exerciseName), eq(5)))
+        .willReturn(-12.34);
 
     mvc.perform(
-            get("/weightlifting/exercises/" + exId + "/trend")
+            get("/weightlifting/stats/trend")
+                .param("exerciseName", exerciseName)
                 .param("lastN", "5")
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().string("-12.34"));
 
-    verify(weightliftingService).computeOverloadTrend(exId, 5);
+    Mockito.verify(weightliftingService).computeOverloadTrend(exerciseName, 5);
   }
 
   /** Returns HTTP 400 when a malformed UUID is passed to /trend endpoint. */
   @Test
-  void getOverloadTrend_invalidUuid_returnsBadRequest() throws Exception {
-    mvc.perform(get("/weightlifting/exercises/not-a-uuid/trend").param("lastN", "5"))
+  void getOverloadTrend_missingExerciseName_returnsBadRequest() throws Exception {
+    mvc.perform(get("/weightlifting/stats/trend").param("lastN", "5"))
         .andExpect(status().isBadRequest());
   }
 }

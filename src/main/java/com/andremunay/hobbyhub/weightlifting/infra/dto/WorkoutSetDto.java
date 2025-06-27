@@ -1,6 +1,9 @@
 package com.andremunay.hobbyhub.weightlifting.infra.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -21,11 +24,17 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class WorkoutSetDto {
-  @Null private UUID workoutId;
+  @JsonProperty(access = Access.READ_ONLY)
+  @Null
+  private UUID workoutId;
 
-  @NotNull private UUID exerciseId;
+  @JsonIgnore
+  @Schema(hidden = true)
+  @Null
+  private UUID exerciseId;
+
+  @NotNull private String exerciseName;
 
   @NotNull
   @DecimalMin("0.1")

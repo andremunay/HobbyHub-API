@@ -99,12 +99,12 @@ class FlashcardServiceTest {
   /** Ensures that an exception is thrown if a review is attempted on a non-existent flashcard. */
   @Test
   void reviewShouldThrowWhenNotFound() {
-    UUID id = UUID.randomUUID();
-    when(repository.findById(id)).thenReturn(Optional.empty());
+    String front = "nonexistent";
+    when(repository.findByFrontIgnoreCase(front)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> flashcardService.review(id, 3))
+    assertThatThrownBy(() -> flashcardService.review(front, 3))
         .isInstanceOf(EntityNotFoundException.class)
-        .hasMessageContaining(id.toString());
+        .hasMessageContaining(front);
   }
 
   /**
@@ -113,51 +113,52 @@ class FlashcardServiceTest {
    */
   @Test
   void reviewShouldApplySchedulerAndSaveAndReturnDto() {
-    UUID id = UUID.randomUUID();
-    LocalDate today = LocalDate.of(2025, Month.MAY, 26);
-    Flashcard original = new Flashcard(id, "a", "b");
+    String front = "hola";
+    LocalDate today = LocalDate.of(2025, 5, 26);
+    Flashcard original = new Flashcard(UUID.randomUUID(), front, "hello");
     original.setRepetition(1);
     original.setEasinessFactor(2.0);
     original.setInterval(1);
     original.setNextReviewOn(today);
 
-    Flashcard updated = new Flashcard(id, "a", "b");
+    Flashcard updated = new Flashcard(original.getId(), front, "hello");
     updated.setRepetition(2);
     updated.setEasinessFactor(2.1);
     updated.setInterval(6);
     updated.setNextReviewOn(today.plusDays(6));
 
-    when(repository.findById(id)).thenReturn(Optional.of(original));
+    when(repository.findByFrontIgnoreCase(front)).thenReturn(Optional.of(original));
     when(scheduler.review(eq(original), eq(5), any(LocalDate.class))).thenReturn(updated);
 
-    FlashcardReviewDto dto = flashcardService.review(id, 5);
+    FlashcardReviewDto dto = flashcardService.review(front, 5);
 
     verify(repository).save(updated);
-    assertThat(dto.getId()).isEqualTo(id);
-    assertThat(dto.getFront()).isEqualTo("a");
-    assertThat(dto.getBack()).isEqualTo("b");
+    assertThat(dto.getId()).isEqualTo(original.getId());
+    assertThat(dto.getFront()).isEqualTo(front);
+    assertThat(dto.getBack()).isEqualTo("hello");
     assertThat(dto.getNextReviewOn()).isEqualTo(today.plusDays(6));
   }
 
   /** Asserts that an existing flashcard can be deleted by ID. */
   @Test
   void deleteShouldDeleteWhenExists() {
-    UUID id = UUID.randomUUID();
-    when(repository.existsById(id)).thenReturn(true);
+    String front = "hola";
+    Flashcard card = new Flashcard(UUID.randomUUID(), front, "hello");
+    when(repository.findByFrontIgnoreCase(front)).thenReturn(Optional.of(card));
 
-    flashcardService.delete(id);
+    flashcardService.delete(front);
 
-    verify(repository).deleteById(id);
+    verify(repository).delete(card);
   }
 
   /** Ensures an exception is thrown when attempting to delete a non-existent flashcard. */
   @Test
   void deleteShouldThrowWhenNotFound() {
-    UUID id = UUID.randomUUID();
-    when(repository.existsById(id)).thenReturn(false);
+    String front = "adios";
+    when(repository.findByFrontIgnoreCase(front)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> flashcardService.delete(id))
+    assertThatThrownBy(() -> flashcardService.delete(front))
         .isInstanceOf(EntityNotFoundException.class)
-        .hasMessageContaining("Flashcard not found: " + id);
+        .hasMessageContaining(front);
   }
 }

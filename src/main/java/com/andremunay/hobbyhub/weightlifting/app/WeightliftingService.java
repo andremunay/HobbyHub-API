@@ -1,9 +1,8 @@
 package com.andremunay.hobbyhub.weightlifting.app;
 
-import static java.util.Comparator.comparing;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.maxBy;
+import static com.andremunay.hobbyhub.shared.util.NameNormalizer.normalize;
 
+import com.andremunay.hobbyhub.shared.util.NameNormalizer;
 import com.andremunay.hobbyhub.weightlifting.domain.Exercise;
 import com.andremunay.hobbyhub.weightlifting.domain.Workout;
 import com.andremunay.hobbyhub.weightlifting.domain.WorkoutSet;
@@ -15,7 +14,6 @@ import com.andremunay.hobbyhub.weightlifting.infra.dto.OneRmPointDto;
 import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutDto;
 import com.andremunay.hobbyhub.weightlifting.infra.dto.WorkoutSetDto;
 import jakarta.persistence.EntityNotFoundException;
-import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +25,10 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Service layer for managing workouts, exercises, and calculating performance metrics.
@@ -55,60 +55,96 @@ public class WeightliftingService {
   }
 
   /**
-   * Estimates the slope of progressive overload over the most recent N workouts.
+   * Estimates the slope of progressive overload over the most recent N workouts, looked up by
+   * human-friendly exercise name.
    *
-   * <p>Measures performance trend based on top sets per workout using linear regression.
-   *
-   * @param exerciseId the exercise to analyze
+   * @param exerciseName the exercise to analyze (e.g. "benchpress" or "Bench Press")
    * @param lastN number of most recent workouts to include
    * @return positive/negative slope of weight progression (0.0 if insufficient data)
    */
-  public double computeOverloadTrend(UUID exerciseId, int lastN) {
-    Pageable page = PageRequest.of(0, lastN);
+  @Transactional
+  public double computeOverloadTrend(String exerciseName, int lastN) {
+    // 1) Normalize & lookup
+    String normalized = NameNormalizer.normalize(exerciseName);
+    Exercise ex =
+        exerciseRepo
+            .findByName(normalized)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "Unknown exercise: \""
+                            + exerciseName
+                            + "\". Valid options: "
+                            + exerciseRepo.findAll().stream()
+                                .map(Exercise::getName)
+                                .collect(Collectors.joining(", "))));
+    UUID exerciseId = ex.getId();
 
+    // 2) Pull the last N sets for that exercise
+    Pageable page = PageRequest.of(0, lastN);
     List<WorkoutSet> sets = workoutRepo.findSetsByExerciseId(exerciseId, page);
 
-    // Extract highest-weight set per workout
+    // 3) For each workout keep only the heaviest set, then sort by date
     List<WorkoutSet> topSets =
         sets.stream()
-            .sorted(comparing(ws -> ws.getWorkout().getPerformedOn()))
             .collect(
-                groupingBy(
-                    ws -> ws.getWorkout().getId(), maxBy(comparing(WorkoutSet::getWeightKg))))
+                Collectors.groupingBy(
+                    ws -> ws.getWorkout().getId(),
+                    Collectors.collectingAndThen(
+                        Collectors.maxBy(Comparator.comparing(WorkoutSet::getWeightKg)),
+                        Optional::get)))
             .values()
             .stream()
-            .map(Optional::get)
+            .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
             .limit(lastN)
-            .sorted(comparing(ws -> ws.getWorkout().getPerformedOn()))
             .toList();
 
+    // 4) If we don’t have at least two data points, slope is zero
     if (topSets.size() < 2) {
       return 0.0;
     }
 
-    // Perform simple linear regression on weights over time
+    // 5) Feed into linear regression
     SimpleRegression regression = new SimpleRegression();
     for (int i = 0; i < topSets.size(); i++) {
-      regression.addData(i, topSets.get(i).getWeightKg().doubleValue());
+      double weight = topSets.get(i).getWeightKg().doubleValue();
+      regression.addData(i, weight);
     }
 
     return regression.getSlope();
   }
 
   /**
-   * Calculates estimated 1RM for top sets across the most recent N workouts.
+   * Calculates estimated 1RM for top sets across the most recent N workouts, looked up by exercise
+   * name rather than UUID.
    *
-   * @param exerciseId exercise identifier
+   * @param exerciseName human-friendly name (e.g. "Bench Press" or "benchpress")
    * @param lastN maximum number of recent sessions to consider
    * @return list of one-rep max data points for trend plotting
    */
-  @Transactional(readOnly = true)
-  public List<OneRmPointDto> getOneRepMaxStats(UUID exerciseId, int lastN) {
-    var page = PageRequest.of(0, lastN);
+  @Transactional
+  public List<OneRmPointDto> getOneRepMaxStats(String exerciseName, int lastN) {
+    // 1) Normalize & resolve the name -> Exercise entity
+    String normalized = normalize(exerciseName);
+    Exercise ex =
+        exerciseRepo
+            .findByName(normalized)
+            .orElseThrow(
+                () ->
+                    new EntityNotFoundException(
+                        "Unknown exercise \""
+                            + exerciseName
+                            + "\". Valid options: "
+                            + exerciseRepo.findAll().stream()
+                                .map(Exercise::getName)
+                                .collect(Collectors.joining(", "))));
+    UUID exerciseId = ex.getId();
 
+    // 2) Paginate your sets
+    var page = PageRequest.of(0, lastN);
     List<WorkoutSet> allSets = workoutRepo.findSetsByExerciseId(exerciseId, page);
 
-    // Retain the top-weight set per workout
+    // 3) Retain only the heaviest set per workout
     Map<UUID, WorkoutSet> topSetPerWorkout =
         allSets.stream()
             .collect(
@@ -118,17 +154,17 @@ public class WeightliftingService {
                         Collectors.maxBy(Comparator.comparing(WorkoutSet::getWeightKg)),
                         Optional::get)));
 
+    // 4) Sort those by date
     List<WorkoutSet> sortedTopSets =
         topSetPerWorkout.values().stream()
             .sorted(Comparator.comparing(ws -> ws.getWorkout().getPerformedOn()))
             .toList();
 
+    // 5) Map to DTOs
     return sortedTopSets.stream()
         .map(
             ws -> {
-              BigDecimal weight = ws.getWeightKg();
-              int reps = ws.getReps();
-              double oneRm = ormStrategy.calculate(weight.doubleValue(), reps);
+              double oneRm = ormStrategy.calculate(ws.getWeightKg().doubleValue(), ws.getReps());
               return new OneRmPointDto(
                   ws.getWorkout().getId(), ws.getWorkout().getPerformedOn(), oneRm);
             })
@@ -136,42 +172,43 @@ public class WeightliftingService {
   }
 
   /**
-   * Creates a new workout along with its associated sets and exercises.
-   *
-   * @param req the workout data submitted by the client
-   * @return the ID of the newly created workout
-   * @throws NoSuchElementException if any exercise in the set is missing
+   * Creates a new workout along with its associated sets and exercises, looking up each Exercise by
+   * its human‐friendly name.
    */
   @Transactional
   public UUID createWorkout(WorkoutDto req) {
+    // 1) Create the Workout entity
     Workout workout = new Workout();
     workout.setId(UUID.randomUUID());
     workout.setPerformedOn(req.getPerformedOn());
 
+    // 2) Map each incoming DTO → WorkoutSet entity
     List<WorkoutSet> sets =
         req.getSets().stream()
             .map(
                 dto -> {
-                  UUID exId = dto.getExerciseId();
+                  // --- lookup by name instead of using dto.getExerciseId()
+                  String rawName = dto.getExerciseName();
+                  String normalized = NameNormalizer.normalize(rawName);
                   Exercise exercise =
                       exerciseRepo
-                          .findById(exId)
+                          .findByName(normalized)
                           .orElseThrow(
-                              () -> new NoSuchElementException("Exercise not found: " + exId));
+                              () ->
+                                  new NoSuchElementException(
+                                      "Exercise not found: \"" + rawName + "\""));
+                  // ---------------------------------------
 
+                  // build the composite key & entity
                   WorkoutSetId setId = new WorkoutSetId(workout.getId(), dto.getOrder());
-
-                  WorkoutSet set =
-                      new WorkoutSet(setId, exercise, dto.getWeightKg(), dto.getReps());
-
-                  set.setWorkout(workout);
-
-                  return set;
+                  WorkoutSet ws = new WorkoutSet(setId, exercise, dto.getWeightKg(), dto.getReps());
+                  ws.setWorkout(workout);
+                  return ws;
                 })
             .collect(Collectors.toList());
 
+    // 3) Attach sets and persist
     sets.forEach(workout::addSet);
-
     workoutRepo.save(workout);
 
     return workout.getId();
@@ -184,10 +221,16 @@ public class WeightliftingService {
    * @return the generated UUID for the new exercise
    */
   @Transactional
-  public UUID createExercise(ExerciseDto dto) {
-    Exercise ex = new Exercise(UUID.randomUUID(), dto.getName(), dto.getMuscleGroup());
+  public String createExercise(ExerciseDto dto) {
+    // Normalize once at creation so repository.findByName(...) will match later
+    String normalizedName = NameNormalizer.normalize(dto.getName());
+    if (exerciseRepo.existsByName(normalizedName)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "An exercise named '" + dto.getName() + "' already exists");
+    }
+    Exercise ex = new Exercise(UUID.randomUUID(), normalizedName, dto.getMuscleGroup());
     exerciseRepo.save(ex);
-    return ex.getId();
+    return ex.getName();
   }
 
   /**
@@ -199,18 +242,27 @@ public class WeightliftingService {
    */
   @Transactional
   public void addSetToWorkout(UUID workoutId, WorkoutSetDto dto) {
+    // 1) Load the workout as before
     Workout workout =
         workoutRepo
             .findById(workoutId)
             .orElseThrow(() -> new EntityNotFoundException("Workout not found: " + workoutId));
 
-    UUID exerciseId = dto.getExerciseId();
-    Exercise exercise = exerciseRepo.getReferenceById(exerciseId);
+    // 2) Normalize & lookup the Exercise by name
+    String rawName = dto.getExerciseName();
+    String normalized = NameNormalizer.normalize(rawName);
+    Exercise exercise =
+        exerciseRepo
+            .findByName(normalized)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Exercise not found: \"" + rawName + "\""));
 
+    // 3) Build the new set
     WorkoutSetId id = new WorkoutSetId(workoutId, dto.getOrder());
-
     WorkoutSet set = new WorkoutSet(id, exercise, dto.getWeightKg(), dto.getReps());
+    set.setWorkout(workout);
 
+    // 4) Attach & save
     workout.addSet(set);
     workoutRepo.save(workout);
   }
@@ -228,25 +280,8 @@ public class WeightliftingService {
         workoutRepo
             .findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Workout not found: " + id));
-
-    List<WorkoutSetDto> setDtos =
-        workout.getSets().stream()
-            .map(
-                set -> {
-                  WorkoutSetDto dto = new WorkoutSetDto();
-                  dto.setExerciseId(set.getExercise().getId());
-                  dto.setWeightKg(set.getWeightKg());
-                  dto.setReps(set.getReps());
-                  dto.setOrder(set.getId().getOrder());
-                  return dto;
-                })
-            .toList();
-
-    WorkoutDto response = new WorkoutDto();
-    response.setPerformedOn(workout.getPerformedOn());
-    response.setSets(setDtos);
-
-    return response;
+    // reuse your single source-of-truth mapping method:
+    return mapToDto(workout);
   }
 
   /**
@@ -264,12 +299,23 @@ public class WeightliftingService {
   }
 
   /**
-   * Deletes an exercise by ID.
+   * Deletes an exercise by its human‐friendly name.
    *
-   * @param id the exercise ID
+   * @param exerciseName the name of the exercise to delete
+   * @throws EntityNotFoundException if no such exercise exists
    */
-  public void deleteExercise(UUID id) {
-    exerciseRepo.deleteById(id);
+  @Transactional
+  public void deleteExercise(String exerciseName) {
+    // 1) normalize & lookup
+    String normalized = NameNormalizer.normalize(exerciseName);
+    Exercise ex =
+        exerciseRepo
+            .findByName(normalized)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Exercise not found: \"" + exerciseName + "\""));
+
+    // 2) delete the entity
+    exerciseRepo.delete(ex);
   }
 
   /**
@@ -277,6 +323,7 @@ public class WeightliftingService {
    *
    * @return list of exercise DTOs
    */
+  @Transactional
   public List<ExerciseDto> getAllExercises() {
     return exerciseRepo.findAll().stream()
         .map(
@@ -295,6 +342,7 @@ public class WeightliftingService {
    *
    * @return list of full workout DTOs
    */
+  @Transactional
   public List<WorkoutDto> getAllWorkouts() {
     return workoutRepo.findAllWithSets().stream().map(this::mapToDto).toList();
   }
@@ -303,6 +351,7 @@ public class WeightliftingService {
   private WorkoutDto mapToDto(Workout workout) {
     WorkoutDto dto = new WorkoutDto();
     dto.setPerformedOn(workout.getPerformedOn());
+    dto.setWorkoutId(workout.getId());
 
     List<WorkoutSetDto> setDtos =
         workout.getSets().stream()
@@ -313,6 +362,8 @@ public class WeightliftingService {
                   s.setWeightKg(set.getWeightKg());
                   s.setReps(set.getReps());
                   s.setExerciseId(set.getExercise().getId());
+                  s.setExerciseName(set.getExercise().getName());
+                  s.setWorkoutId(set.getWorkout().getId());
                   return s;
                 })
             .toList();

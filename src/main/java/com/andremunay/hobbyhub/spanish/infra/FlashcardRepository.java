@@ -3,6 +3,7 @@ package com.andremunay.hobbyhub.spanish.infra;
 import com.andremunay.hobbyhub.spanish.domain.Flashcard;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -20,4 +21,6 @@ public interface FlashcardRepository extends JpaRepository<Flashcard, UUID> {
    * @return list of flashcards scheduled for review by that date
    */
   List<Flashcard> findByNextReviewOnLessThanEqual(LocalDate dueDate);
+
+  Optional<Flashcard> findByFrontIgnoreCase(String front);
 }

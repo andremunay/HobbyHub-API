@@ -81,33 +81,34 @@ class FlashcardControllerTest {
   /** Verifies that the review endpoint accepts a grade and returns an updated DTO. */
   @Test
   void reviewEndpointShouldApplyGradeAndReturnUpdatedDto() throws Exception {
-    UUID id = UUID.randomUUID();
+    String front = "hola";
     int grade = 4;
+    UUID id = UUID.randomUUID();
     LocalDate nextReview = LocalDate.now().plusDays(6);
-    FlashcardReviewDto updatedDto = new FlashcardReviewDto(id, "hola", "hello", nextReview);
+    FlashcardReviewDto updatedDto = new FlashcardReviewDto(id, front, "hello", nextReview);
 
-    BDDMockito.given(flashcardService.review(id, grade)).willReturn(updatedDto);
+    // Stub service to expect (front, grade)
+    BDDMockito.given(flashcardService.review(front, grade)).willReturn(updatedDto);
 
-    String payload = String.format("{\"grade\":%d}", grade);
+    String payload = String.format("{\"front\":\"%s\",\"grade\":%d}", front, grade);
 
-    mvc.perform(
-            post("/flashcards/{id}/review", id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(payload))
+    mvc.perform(post("/flashcards/review").contentType(MediaType.APPLICATION_JSON).content(payload))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(id.toString()))
+        .andExpect(jsonPath("$.front").value(front))
+        .andExpect(jsonPath("$.back").value("hello"))
         .andExpect(jsonPath("$.nextReviewOn").value(nextReview.toString()));
   }
 
   /** Verifies that a flashcard can be deleted by ID. */
   @Test
-  void deleteCard() throws Exception {
-    UUID id = UUID.randomUUID();
-    BDDMockito.willDoNothing().given(flashcardService).delete(id);
+  void deleteCard_byFront() throws Exception {
+    String front = "hola";
+    BDDMockito.willDoNothing().given(flashcardService).delete(front);
 
-    mvc.perform(delete("/flashcards/{id}", id)).andExpect(status().isNoContent());
+    mvc.perform(delete("/flashcards").param("front", front)).andExpect(status().isNoContent());
 
-    Mockito.verify(flashcardService).delete(id);
+    Mockito.verify(flashcardService).delete(front);
   }
 
   /** Verifies that only due flashcards are returned when ?due=true is specified. */

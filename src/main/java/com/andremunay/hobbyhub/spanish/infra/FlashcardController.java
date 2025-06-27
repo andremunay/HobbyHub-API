@@ -7,12 +7,10 @@ import com.andremunay.hobbyhub.spanish.infra.dto.FlashcardReviewDto;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -72,26 +70,24 @@ public class FlashcardController {
   /**
    * Submits a review result for a given flashcard and returns the updated scheduling info.
    *
-   * @param id the flashcard's unique identifier
    * @param req validated review score DTO
    * @return HTTP 200 with updated flashcard DTO
    */
-  @PostMapping("/{id}/review")
-  public ResponseEntity<FlashcardReviewDto> review(
-      @PathVariable UUID id, @Valid @RequestBody FlashcardGradeDto req) {
-    FlashcardReviewDto updated = flashcardService.review(id, req.getGrade());
+  @PostMapping("/review")
+  public ResponseEntity<FlashcardReviewDto> review(@Valid @RequestBody FlashcardGradeDto req) {
+    FlashcardReviewDto updated = flashcardService.review(req.getFront(), req.getGrade());
     return ResponseEntity.ok(updated);
   }
 
   /**
    * Deletes a flashcard by ID.
    *
-   * @param id the UUID of the flashcard to delete
+   * @param front the name of the flashcard to delete
    * @return HTTP 204 if the deletion is successful
    */
-  @DeleteMapping("/{id}")
-  public ResponseEntity<Void> deleteCard(@PathVariable UUID id) {
-    flashcardService.delete(id);
+  @DeleteMapping
+  public ResponseEntity<Void> deleteCard(@RequestParam("front") String front) {
+    flashcardService.delete(front);
     return ResponseEntity.noContent().build();
   }
 }

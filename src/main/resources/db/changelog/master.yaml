@@ -4,10 +4,12 @@ databaseChangeLog:
   - include:
       file: db/changelog/V2__flashcard_schema.yaml
   - include:
-      file: db/changelog/V2__testdata.yaml
-  - include:
       file: db/changelog/V3__weightlifting_schema.yaml
   - include:
-      file: db/changelog/V3__exercise_seed.yaml
-  - include:
       file: db/changelog/V4__update_flashcard_schema.yaml
+  - include:
+      file: db/changelog/V5__exercise_seed_fly.yaml
+  - include:
+      file: db/changelog/V5__flashcard_seed_fly.yaml
+  - include:
+      file: db/changelog/V6__drop_created_column_flashcard_schema.yaml
