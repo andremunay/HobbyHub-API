@@ -34,6 +34,6 @@ public class SwaggerConfig {
    */
   @Bean
   public OpenAPI customOpenAPI() {
-    return new OpenAPI().addServersItem(new Server().url("https://hobbyhub.fly.dev"));
+    return new OpenAPI().addServersItem(new Server().url("https://hobbyhub-api.fly.dev"));
   }
 }

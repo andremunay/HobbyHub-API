@@ -49,18 +49,26 @@ public class SecurityConfig {
   public SecurityFilterChain flyFilterChain(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(
             auth -> auth.requestMatchers(PUBLIC_MATCHERS).permitAll().anyRequest().authenticated())
+        // Use the same entry point, but also declare it as your loginPage
         .exceptionHandling(
             exc ->
                 exc.authenticationEntryPoint(
                     new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/github")))
-        .oauth2Login(oauth -> oauth.defaultSuccessUrl("/welcome", true))
+        .oauth2Login(
+            oauth ->
+                oauth
+                    // tells Spring “start the OAuth flow here”
+                    .loginPage("/oauth2/authorization/github")
+                    .defaultSuccessUrl("/welcome", true))
         .logout(logout -> logout.logoutSuccessUrl("/").permitAll())
         .headers(
             headers ->
                 headers.contentSecurityPolicy(
                     csp ->
                         csp.policyDirectives(
-                            "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com")))
+                            "default-src 'self'; "
+                                + "script-src 'self' https://cdn.tailwindcss.com; "
+                                + "connect-src 'self';")))
         .csrf(csrf -> csrf.disable());
 
     return http.build();
