@@ -87,3 +87,10 @@ management:
 logging:
   level:
     root: INFO
+
+springdoc:
+  swagger-ui:
+    # fetch from the current host, not the hardcoded Server.url
+    validator-url: ""           # (optional) disables the online validator
+    with-credentials: true      # include your login cookie on every XHR
+    oauth2-redirect-url: /swagger-ui/oauth2-redirect.html

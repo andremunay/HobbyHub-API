@@ -68,7 +68,7 @@ public class SecurityConfig {
                         csp.policyDirectives(
                             "default-src 'self'; "
                                 + "script-src 'self' https://cdn.tailwindcss.com; "
-                                + "connect-src 'self' https://hobbyhub-api.fly.dev")))
+                                + "connect-src 'self';")))
         .csrf(csrf -> csrf.disable());
 
     return http.build();
