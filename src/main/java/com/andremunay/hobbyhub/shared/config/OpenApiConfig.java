@@ -1,9 +1,13 @@
 package com.andremunay.hobbyhub.shared.config;
 
-import io.swagger.v3.oas.models.info.Info;
-import org.springdoc.core.customizers.OpenApiCustomizer;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
 
 /**
  * Configures metadata for the generated OpenAPI documentation.
@@ -13,18 +17,16 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-  /**
-   * Customizes the OpenAPI specification with application metadata.
-   *
-   * @return an {@link OpenApiCustomizer} that adds title, version, and description
-   */
   @Bean
-  OpenApiCustomizer customizer() {
-    return openApi ->
-        openApi.info(
-            new Info()
-                .title("HobbyHub API")
-                .version("v1")
-                .description("APIs for Spanish flashcards and weightlifting modules"));
+  public OpenAPI hobbyHubOpenApi() {
+    return new OpenAPI()
+      .info(new Info()
+        .title("HobbyHub API")
+        .version("v1")
+        .description("APIs for Spanish flashcards and weightlifting modules"))
+      .servers(List.of(
+        new Server().url("https://hobbyhub-api.fly.dev")
+      ));
   }
 }
+
