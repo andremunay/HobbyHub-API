@@ -1,5 +1,7 @@
 package com.andremunay.hobbyhub.weightlifting.domain;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -8,7 +10,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,7 @@ import lombok.Setter;
  * <p>Uses a composite key ({@link WorkoutSetId}) to uniquely identify the set by workout and order.
  * Each set is tied to a specific {@link Exercise} and belongs to a parent {@link Workout}.
  */
+@SuppressWarnings("java:S7027")
 @Entity
 @Table(name = "workout_sets")
 @Getter

@@ -39,6 +39,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # fetch full history so sonar can blame each line
+          fetch-depth: 0
 
       - name: Cache Maven
         uses: actions/cache@v4
