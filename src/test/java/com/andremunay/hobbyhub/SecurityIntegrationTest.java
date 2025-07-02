@@ -1,26 +1,28 @@
 package com.andremunay.hobbyhub;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.logout;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.util.List;
 import java.util.Map;
+
+import static org.hamcrest.Matchers.containsString;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.test.context.support.WithMockUser;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.logout;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -39,17 +41,24 @@ class SecurityIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
 
-  /**
-   * Verifies that unauthenticated users are redirected to GitHub OAuth login when accessing
-   * protected endpoints.
-   */
-  @Test
-  void whenNotAuthenticated_thenRedirectToGithubLogin() throws Exception {
-    mockMvc
-        .perform(get("/flashcards"))
+/**
+ * Verifies that unauthenticated users are redirected to GitHub OAuth login when accessing
+ * protected write endpoints.
+ */
+@Test
+void whenNotAuthenticated_thenRedirectToGithubLoginOnWrite() throws Exception {
+    mockMvc.perform(post("/flashcards")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "front": "Test question?",
+                  "back": "Test answer."
+                }
+                """))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrlPattern("**/oauth2/authorization/github"));
-  }
+}
+
 
   /** Confirms that the /actuator/health endpoint is publicly accessible. */
   @Test
@@ -84,5 +93,11 @@ class SecurityIntegrationTest {
         .perform(logout("/logout"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/"));
+  }
+  /** Assert that reads remain open */
+  @Test
+  void whenNotAuthenticated_thenGetIsOk() throws Exception {
+      mockMvc.perform(get("/flashcards"))
+          .andExpect(status().isOk());
   }
 }
