@@ -1,6 +1,7 @@
 package com.andremunay.hobbyhub.shared.config;
 
 import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -34,9 +35,10 @@ public class SecurityConfig {
         List.of(
             "https://elements-demo.stoplight.io",
             "https://stoplight.io",
+            "https://*.stoplight.io",
             "https://hobbyhub-api.fly.dev"));
     cfg.setAllowedMethods(List.of("GET", "POST", "DELETE", "OPTIONS"));
-    cfg.setAllowedHeaders(List.of("*"));
+    cfg.setAllowedHeaders(List.of("Authorization","Content-Type","*"));
     cfg.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
