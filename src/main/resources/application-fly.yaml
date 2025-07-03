@@ -97,11 +97,3 @@ springdoc:
     validator-url: ""           # (optional) disables the online validator
     with-credentials: true      # include your login cookie on every XHR
     oauth2-redirect-url: /swagger-ui/oauth2-redirect.html
-
-    oauth:
-      client-id: ${OAUTH_CLIENT_ID}
-      client-secret: ${OAUTH_CLIENT_SECRET}
-      realm: hobbyhub
-      app-name: HobbyHub API
-      scopes: repo read:user
-      use-pkce-with-authorization-code-grant: true
