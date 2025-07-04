@@ -1,7 +1,6 @@
 package com.andremunay.hobbyhub.shared.config;
 
 import java.util.List;
-import java.util.Set;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -9,15 +8,15 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
-import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
-import org.springframework.web.accept.HeaderContentNegotiationStrategy;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
@@ -28,6 +27,7 @@ public class SecurityConfig {
   private static final String[] PUBLIC_MATCHERS = {
     "/",
     "/welcome",
+    "/docs/**",
     "/actuator/**",
     "/oauth2/**",
     "/login/**",
@@ -37,7 +37,7 @@ public class SecurityConfig {
     "/actuator/prometheus"
   };
 
-  /** 1) CORS filter at the highest precedence, wired from corsConfigurationSource(). */
+  /** 1) CORS filter at highest precedence, wired from corsConfigurationSource(). */
   @Bean
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public CorsFilter corsFilter(UrlBasedCorsConfigurationSource corsSource) {
@@ -63,17 +63,16 @@ public class SecurityConfig {
     return src;
   }
 
-  /** 3) Local/dev: everything is open, no CSRF, with security headers. */
+  /** 3) Local/dev: everything open, no CSRF, with security headers. */
   @Bean
   @Profile("local")
   public SecurityFilterChain localFilterChain(HttpSecurity http) throws Exception {
-    http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+    http.cors(c -> c.configurationSource(corsConfigurationSource()))
         .authorizeHttpRequests(
-            auth -> auth.requestMatchers(PUBLIC_MATCHERS).permitAll().anyRequest().permitAll())
+            a -> a.requestMatchers(PUBLIC_MATCHERS).permitAll().anyRequest().permitAll())
         .headers(
-            headers ->
-                headers
-                    .contentSecurityPolicy(
+            h ->
+                h.contentSecurityPolicy(
                         csp ->
                             csp.policyDirectives(
                                 "default-src 'self'; "
@@ -86,63 +85,56 @@ public class SecurityConfig {
                         xss ->
                             xss.headerValue(
                                 XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
-                    .referrerPolicy(rp -> rp.policy(ReferrerPolicy.NO_REFERRER)))
-        .csrf(csrf -> csrf.disable());
+                    .referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)))
+        .csrf(c -> c.disable());
 
     return http.build();
   }
 
   /**
-   * 4) Fly/production: GETs & public paths are open; non-GETs require OAuth2.
-   *
-   * <p>- XHR/JSON clients get a 401 - Browsers/UI get a 302 → GitHub OAuth
+   * 4) Prod/fly: GETs & PUBLIC_MATCHERS are open; POST/PUT/DELETE → 401 for API clients, 302→GitHub
+   * for browsers.
    */
   @Bean
   @Profile("fly")
   public SecurityFilterChain flyFilterChain(HttpSecurity http) throws Exception {
-    // match Accept: application/json
-    var jsonMatcher =
-        new MediaTypeRequestMatcher(
-            new HeaderContentNegotiationStrategy(), MediaType.APPLICATION_JSON);
-    jsonMatcher.setIgnoredMediaTypes(Set.of(MediaType.ALL));
+    // any write operation → catch and send 401
+    RequestMatcher apiWrites =
+        new OrRequestMatcher(
+            new AntPathRequestMatcher("/**", HttpMethod.POST.name()),
+            new AntPathRequestMatcher("/**", HttpMethod.PUT.name()),
+            new AntPathRequestMatcher("/**", HttpMethod.DELETE.name()));
 
-    http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+    http.cors(c -> c.configurationSource(corsConfigurationSource()))
         .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers(PUBLIC_MATCHERS)
+            a ->
+                a.requestMatchers(PUBLIC_MATCHERS)
                     .permitAll() // landing, docs, health…
                     .requestMatchers(HttpMethod.GET, "/**")
-                    .permitAll() // all GETs
+                    .permitAll() // all GETs open
                     .anyRequest()
-                    .authenticated() // POST/PUT/DELETE…
+                    .authenticated() // others locked down
             )
         .exceptionHandling(
-            ex ->
-                ex
-                    // 401 for JSON/XHR
+            e ->
+                e
+                    // 401 for XHR/JSON API calls
                     .defaultAuthenticationEntryPointFor(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), jsonMatcher)
-                    // 302 redirect for browsers
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), apiWrites)
+                    // 302 redirect for browsers/UI
                     .authenticationEntryPoint(
                         new LoginUrlAuthenticationEntryPoint("/oauth2/authorization/github")))
         .oauth2Login(
-            oauth ->
-                oauth.loginPage("/oauth2/authorization/github").defaultSuccessUrl("/welcome", true))
-        .logout(logout -> logout.logoutSuccessUrl("/").permitAll())
+            o -> o.loginPage("/oauth2/authorization/github").defaultSuccessUrl("/welcome", true))
+        .logout(l -> l.logoutSuccessUrl("/").permitAll())
         .headers(
-            headers ->
-                headers
-                    .contentSecurityPolicy(
+            h ->
+                h.contentSecurityPolicy(
                         csp ->
                             csp.policyDirectives(
                                 "default-src 'self'; "
                                     + "script-src 'self' https://cdn.tailwindcss.com; "
-                                    + "connect-src 'self' "
-                                    + "https://hobbyhub-api.fly.dev "
-                                    + "https://elements-demo.stoplight.io "
-                                    + "https://github.com "
-                                    + "https://github.com/login/oauth/authorize "
-                                    + "https://github.com/login/oauth/access_token;"))
+                                    + "connect-src 'self' https://hobbyhub-api.fly.dev https://elements-demo.stoplight.io;"))
                     .httpStrictTransportSecurity(
                         hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31_536_000))
                     .frameOptions(f -> f.deny())
@@ -150,8 +142,8 @@ public class SecurityConfig {
                         xss ->
                             xss.headerValue(
                                 XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
-                    .referrerPolicy(rp -> rp.policy(ReferrerPolicy.NO_REFERRER)))
-        .csrf(csrf -> csrf.disable());
+                    .referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER)))
+        .csrf(c -> c.disable());
 
     return http.build();
   }

@@ -52,7 +52,7 @@ public class HomeController {
               <h3 class="text-xl font-semibold mb-2">Documentation</h3>
               <ul class="list-disc list-inside space-y-1">
                 <li><a href="/swagger-ui/index.html" class="text-blue-600 hover:underline">Swagger UI</a></li>
-                <li><a href="https://elements-demo.stoplight.io/?spec=https://hobbyhub-api.fly.dev/v3/api-docs" class="text-blue-600 hover:underline">Stoplight API Docs</a></li>
+                <li><a href="/docs/index.html"class="text-blue-600 hover:underline">API Docs (Stoplight Elements)</a></li>
               </ul>
             </div>
 
