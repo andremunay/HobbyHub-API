@@ -24,7 +24,7 @@ HELP.md
 .springBeans
 .sts4-cache
 /docs/fly-apps-commands.md
-/docs/fly-postgres-credentials.txt
+/docs/fly-postgres-credentials
 
 # Spring Boot secrets/config
 
