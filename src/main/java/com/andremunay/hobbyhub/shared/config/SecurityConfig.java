@@ -27,7 +27,6 @@ public class SecurityConfig {
   private static final String[] PUBLIC_MATCHERS = {
     "/",
     "/welcome",
-    "/docs/**",
     "/actuator/**",
     "/oauth2/**",
     "/login/**",
@@ -48,12 +47,7 @@ public class SecurityConfig {
   @Bean
   public UrlBasedCorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration cfg = new CorsConfiguration();
-    cfg.setAllowedOriginPatterns(
-        List.of(
-            "https://hobbyhub-api.fly.dev",
-            "https://elements-demo.stoplight.io",
-            "https://stoplight.io",
-            "https://*.stoplight.io"));
+    cfg.setAllowedOriginPatterns(List.of("https://hobbyhub-api.fly.dev"));
     cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
     cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "*"));
     cfg.setAllowCredentials(true);
@@ -134,7 +128,7 @@ public class SecurityConfig {
                             csp.policyDirectives(
                                 "default-src 'self'; "
                                     + "script-src 'self' https://cdn.tailwindcss.com; "
-                                    + "connect-src 'self' https://hobbyhub-api.fly.dev https://elements-demo.stoplight.io;"))
+                                    + "connect-src 'self' https://hobbyhub-api.fly.dev;"))
                     .httpStrictTransportSecurity(
                         hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31_536_000))
                     .frameOptions(f -> f.deny())
