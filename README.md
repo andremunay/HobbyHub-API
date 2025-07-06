@@ -79,7 +79,8 @@ docker compose up --build
 | **CI/CD**         | Maven tests & Fly.io deploy via GitHub Actions              |
 
 > **Live demo:** [https://hobbyhub-api.fly.dev/](https://hobbyhub-api.fly.dev/)
-> **Walkthrough:** [![Loom demo](https://cdn.loom.com/sessions/thumbnails/loom-demo.gif)](https://www.loom.com/share/d3eaf334afd84dad95791984ecf4a44b?sid=d600127c-fe29-4732-8be6-bf9dfc7b0899)
+> **Walkthrough:** [![Loom demo](https://cdn.loom.com/sessions/thumbnails/d3eaf334afd84dad95791984ecf4a44b-f6d3c40b10aaad52-full-play.gif)](https://www.loom.com/share/d3eaf334afd84dad95791984ecf4a44b)
+
 
 ---
 
