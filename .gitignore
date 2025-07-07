@@ -30,6 +30,7 @@ HELP.md
 
 # Docker
 .env
+node_modules/
 
 # OS junk
 .DS_Store
@@ -45,3 +46,4 @@ build/
 
 # Spotless
 **/spotless.*.backup
+
