@@ -9,7 +9,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Copy jar from build stage
-COPY --from=builder /app/target/hobbyhub-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=builder /app/target/*.jar app.jar
 
 # Spring profile (defaults to 'fly' if not set explicitly)
 ENV SPRING_PROFILES_ACTIVE=fly
