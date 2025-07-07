@@ -29,6 +29,7 @@ fly-postgres-credentials
 
 # Docker
 **\.env
+node_modules
 
 # OS junk
 **\.DS_Store
